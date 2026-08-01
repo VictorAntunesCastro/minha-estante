@@ -1,65 +1,73 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+
+const livrosFalsos = [
+  { id: 1, title: "Orgulho e Preconceito", author: "Jane Austen", coverUrl: "https://covers.openlibrary.org/b/isbn/9780141439518-L.jpg", rating: 5, genre: "Romance" },
+  { id: 2, title: "1984", author: "George Orwell", coverUrl: "https://covers.openlibrary.org/b/isbn/9780451524935-L.jpg", rating: 4, genre: "Ficção" },
+  { id: 3, title: "O Hobbit", author: "J.R.R. Tolkien", coverUrl: "https://covers.openlibrary.org/b/isbn/9780547928227-L.jpg", rating: 5, genre: "Fantasia" },
+];
 
 export default function Home() {
+  const [livroSelecionado, setLivroSelecionado] = useState(null);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.js file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <main className="min-h-screen bg-amber-50 p-8">
+      <h1 className="text-3xl font-bold text-amber-900 mb-8 text-center">
+        Minha Estante
+      </h1>
+
+      {/* Prateleira */}
+      <div className="relative bg-amber-800 rounded-lg p-6 shadow-xl">
+        <div className="flex gap-4 flex-wrap justify-center pb-4">
+          {livrosFalsos.map((livro) => (
+            <div
+              key={livro.id}
+              onClick={() => setLivroSelecionado(livro)}
+              className="cursor-pointer transition-transform hover:-translate-y-3 hover:scale-105"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              <img
+                src={livro.coverUrl}
+                alt={livro.title}
+                className="w-28 h-40 object-cover rounded shadow-md"
+              />
+            </div>
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        {/* Prateleira de madeira (a "tábua") */}
+        <div className="h-4 bg-amber-900 rounded-b-lg"></div>
+      </div>
+
+      {/* Modal */}
+      {livroSelecionado && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center p-4"
+          onClick={() => setLivroSelecionado(null)}
+        >
+          <div
+            className="bg-white rounded-lg p-6 max-w-md w-full flex gap-4"
+            onClick={(e) => e.stopPropagation()}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+            <img
+              src={livroSelecionado.coverUrl}
+              alt={livroSelecionado.title}
+              className="w-32 h-48 object-cover rounded shadow-md"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <div>
+              <h2 className="text-xl font-bold">{livroSelecionado.title}</h2>
+              <p className="text-gray-600">{livroSelecionado.author}</p>
+              <p className="text-sm text-gray-500 mt-2">{livroSelecionado.genre}</p>
+              <p className="mt-2">{"⭐".repeat(livroSelecionado.rating)}</p>
+              <button
+                onClick={() => setLivroSelecionado(null)}
+                className="mt-4 px-4 py-2 bg-amber-800 text-white rounded hover:bg-amber-900"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
         </div>
-      </main>
-    </div>
+      )}
+    </main>
   );
 }
