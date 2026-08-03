@@ -12,3 +12,19 @@ export async function GET() {
   });
   return Response.json(books);
 }
+
+export async function POST(request) {
+  const data = await request.json();
+
+  const newBook = await prisma.book.create({
+    data: {
+      title: data.title,
+      author: data.author,
+      coverUrl: data.coverUrl || null,
+      genre: data.genre || null,
+      status: data.status || "wishlist",
+    },
+  });
+
+  return Response.json(newBook);
+}
