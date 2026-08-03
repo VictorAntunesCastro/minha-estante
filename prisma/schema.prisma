@@ -22,6 +22,9 @@ model Book {
   genre       String?
   status      String   @default("wishlist")
   rating      Int?
+  notes       String?
+  nickname    String?
+  startedAt   DateTime?
   finishedAt  DateTime?
   createdAt   DateTime @default(now())
 }

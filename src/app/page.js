@@ -1,53 +1,90 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import BookShelf from "./components/BookShelf";
+import BookModal from "./components/BookModal";
+import AddBookModal from "./components/AddBookModal";
+import Toast from "./components/Toast";
+
+const STATUS_LABELS = {
+  wishlist: "Quero ler",
+  lendo: "Lendo",
+  lido: "Lido",
+};
 
 export default function Home() {
   const [livros, setLivros] = useState([]);
   const [livroSelecionado, setLivroSelecionado] = useState(null);
   const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState(null);
+  const [filtro, setFiltro] = useState("todos");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
-  const [novoLivro, setNovoLivro] = useState({
-    title: "",
-    author: "",
-    coverUrl: "",
-    genre: "",
-  });
+  const [toast, setToast] = useState(null);
+
+  function mostrarToast(mensagem, tipo = "sucesso") {
+    setToast({ mensagem, tipo });
+  }
 
   function buscarLivros() {
+    setErro(null);
     fetch("/api/books")
-      .then((res) => res.json())
-      .then((data) => {
-        setLivros(data);
-        setCarregando(false);
-      });
+      .then((res) => {
+        if (!res.ok) throw new Error("Erro ao carregar livros");
+        return res.json();
+      })
+      .then((data) => { setLivros(data); setCarregando(false); })
+      .catch((e) => { setErro(e.message); setCarregando(false); });
   }
 
-  useEffect(() => {
-    buscarLivros();
-  }, []);
+  useEffect(() => { buscarLivros(); }, []);
 
-  function handleChange(e) {
-    setNovoLivro({ ...novoLivro, [e.target.name]: e.target.value });
+  async function atualizarLivro(id, dados) {
+    const res = await fetch(`/api/books/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dados),
+    });
+    const atualizado = await res.json();
+    setLivros((prev) => prev.map((l) => (l.id === id ? atualizado : l)));
+    setLivroSelecionado(atualizado);
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function deletarLivro(id) {
+    await fetch(`/api/books/${id}`, { method: "DELETE" });
+    setLivros((prev) => prev.filter((l) => l.id !== id));
+    setLivroSelecionado(null);
+    mostrarToast("Livro removido");
+  }
 
-    await fetch("/api/books", {
+  async function salvarLivro(novoLivro) {
+    const res = await fetch("/api/books", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(novoLivro),
     });
-
-    setNovoLivro({ title: "", author: "", coverUrl: "", genre: "" });
+    if (!res.ok) { mostrarToast("Erro ao salvar livro", "erro"); return; }
+    const criado = await res.json();
+    setLivros((prev) => [criado, ...prev]);
     setMostrarFormulario(false);
-    buscarLivros();
+    mostrarToast("Livro adicionado! 📚");
   }
+
+  function reordenarLivros(reordenado) {
+    setLivros(reordenado);
+  }
+
+  const livrosFiltrados = filtro === "todos" ? livros : livros.filter((l) => l.status === filtro);
+
+  const contadores = {
+    todos: livros.length,
+    wishlist: livros.filter((l) => l.status === "wishlist").length,
+    lendo: livros.filter((l) => l.status === "lendo").length,
+    lido: livros.filter((l) => l.status === "lido").length,
+  };
 
   return (
     <main className="min-h-screen bg-amber-50 p-8">
-      <div className="flex justify-between items-center mb-8 max-w-4xl mx-auto">
+      <div className="flex justify-between items-center mb-6 max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-amber-900">Minha Estante</h1>
         <button
           onClick={() => setMostrarFormulario(true)}
@@ -57,139 +94,62 @@ export default function Home() {
         </button>
       </div>
 
-      {carregando && (
-        <p className="text-center text-amber-700">Carregando livros...</p>
-      )}
+      {/* Filtros */}
+      <div className="flex gap-2 mb-6 max-w-4xl mx-auto flex-wrap">
+        {[["todos", "Todos"], ["wishlist", "Quero ler"], ["lendo", "Lendo"], ["lido", "Lido"]].map(([val, label]) => (
+          <button
+            key={val}
+            onClick={() => setFiltro(val)}
+            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+              filtro === val ? "bg-amber-800 text-white" : "bg-amber-100 text-amber-800 hover:bg-amber-200"
+            }`}
+          >
+            {label} ({contadores[val]})
+          </button>
+        ))}
+      </div>
 
-      {!carregando && livros.length === 0 && (
+      {erro && <p className="text-center text-red-600 mb-4">{erro}</p>}
+      {carregando && <p className="text-center text-amber-700">Carregando livros...</p>}
+
+      {!carregando && livrosFiltrados.length === 0 && (
         <p className="text-center text-amber-700">
-          Nenhum livro na estante ainda. Adicione o primeiro!
+          {filtro === "todos"
+            ? "Nenhum livro na estante ainda. Adicione o primeiro!"
+            : `Nenhum livro com status "${STATUS_LABELS[filtro]}".`}
         </p>
       )}
 
-      {!carregando && livros.length > 0 && (
-        <div className="relative bg-amber-800 rounded-lg p-6 shadow-xl max-w-4xl mx-auto">
-          <div className="flex gap-4 flex-wrap justify-center pb-4">
-            {livros.map((livro) => (
-              <div
-                key={livro.id}
-                onClick={() => setLivroSelecionado(livro)}
-                className="cursor-pointer transition-transform hover:-translate-y-3 hover:scale-105"
-              >
-                {livro.coverUrl ? (
-                  <img
-                    src={livro.coverUrl}
-                    alt={livro.title}
-                    className="w-28 h-40 object-cover rounded shadow-md"
-                  />
-                ) : (
-                  <div className="w-28 h-40 bg-amber-600 rounded shadow-md flex items-center justify-center p-2 text-center text-white text-xs">
-                    {livro.title}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="h-4 bg-amber-900 rounded-b-lg"></div>
-        </div>
+      {!carregando && livrosFiltrados.length > 0 && (
+        <BookShelf
+          livros={livrosFiltrados}
+          onSelect={setLivroSelecionado}
+          onReorder={reordenarLivros}
+        />
       )}
 
-      {/* Modal de detalhes do livro */}
       {livroSelecionado && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center p-4"
-          onClick={() => setLivroSelecionado(null)}
-        >
-          <div
-            className="bg-white rounded-lg p-6 max-w-md w-full flex gap-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {livroSelecionado.coverUrl && (
-              <img
-                src={livroSelecionado.coverUrl}
-                alt={livroSelecionado.title}
-                className="w-32 h-48 object-cover rounded shadow-md"
-              />
-            )}
-            <div>
-              <h2 className="text-xl font-bold">{livroSelecionado.title}</h2>
-              <p className="text-gray-600">{livroSelecionado.author}</p>
-              <p className="text-sm text-gray-500 mt-2">{livroSelecionado.genre}</p>
-              {livroSelecionado.rating && (
-                <p className="mt-2">{"⭐".repeat(livroSelecionado.rating)}</p>
-              )}
-              <button
-                onClick={() => setLivroSelecionado(null)}
-                className="mt-4 px-4 py-2 bg-amber-800 text-white rounded hover:bg-amber-900"
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
-        </div>
+        <BookModal
+          livro={livroSelecionado}
+          onClose={() => setLivroSelecionado(null)}
+          onUpdate={atualizarLivro}
+          onDelete={deletarLivro}
+        />
       )}
 
-      {/* Modal de adicionar livro */}
       {mostrarFormulario && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center p-4"
-          onClick={() => setMostrarFormulario(false)}
-        >
-          <form
-            onSubmit={handleSubmit}
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-lg p-6 max-w-md w-full flex flex-col gap-3"
-          >
-            <h2 className="text-xl font-bold mb-2">Adicionar Livro</h2>
+        <AddBookModal
+          onClose={() => setMostrarFormulario(false)}
+          onSave={salvarLivro}
+        />
+      )}
 
-            <input
-              name="title"
-              value={novoLivro.title}
-              onChange={handleChange}
-              placeholder="Título"
-              required
-              className="border rounded px-3 py-2"
-            />
-            <input
-              name="author"
-              value={novoLivro.author}
-              onChange={handleChange}
-              placeholder="Autor"
-              required
-              className="border rounded px-3 py-2"
-            />
-            <input
-              name="genre"
-              value={novoLivro.genre}
-              onChange={handleChange}
-              placeholder="Gênero (opcional)"
-              className="border rounded px-3 py-2"
-            />
-            <input
-              name="coverUrl"
-              value={novoLivro.coverUrl}
-              onChange={handleChange}
-              placeholder="URL da capa (opcional)"
-              className="border rounded px-3 py-2"
-            />
-
-            <div className="flex gap-2 mt-2">
-              <button
-                type="submit"
-                className="flex-1 px-4 py-2 bg-amber-800 text-white rounded hover:bg-amber-900"
-              >
-                Salvar
-              </button>
-              <button
-                type="button"
-                onClick={() => setMostrarFormulario(false)}
-                className="flex-1 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-              >
-                Cancelar
-              </button>
-            </div>
-          </form>
-        </div>
+      {toast && (
+        <Toast
+          mensagem={toast.mensagem}
+          tipo={toast.tipo}
+          onClose={() => setToast(null)}
+        />
       )}
     </main>
   );
