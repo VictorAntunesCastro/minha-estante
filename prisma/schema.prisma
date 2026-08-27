@@ -24,6 +24,7 @@ model Book {
   rating      Int?
   notes       String?
   nickname    String?
+  order       Int      @default(0)
   startedAt   DateTime?
   finishedAt  DateTime?
   createdAt   DateTime @default(now())

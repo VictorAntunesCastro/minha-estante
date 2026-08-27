@@ -1,30 +1,33 @@
-import { PrismaClient } from "../../../generated/prisma";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-
-const adapter = new PrismaBetterSqlite3({
-  url: "file:./dev.db",
-});
-const prisma = new PrismaClient({ adapter });
+import { prisma } from "../../../lib/prisma";
 
 export async function GET() {
-  const books = await prisma.book.findMany({
-    orderBy: { createdAt: "desc" },
-  });
-  return Response.json(books);
+  try {
+    const books = await prisma.book.findMany({ orderBy: { order: "asc" } });
+    return Response.json(books);
+  } catch {
+    return Response.json({ error: "Erro ao buscar livros" }, { status: 500 });
+  }
 }
 
 export async function POST(request) {
-  const data = await request.json();
+  try {
+    const data = await request.json();
+    if (!data.title?.trim() || !data.author?.trim())
+      return Response.json({ error: "Título e autor são obrigatórios" }, { status: 400 });
 
-  const newBook = await prisma.book.create({
-    data: {
-      title: data.title,
-      author: data.author,
-      coverUrl: data.coverUrl || null,
-      genre: data.genre || null,
-      status: data.status || "wishlist",
-    },
-  });
-
-  return Response.json(newBook);
+    const maxOrder = await prisma.book.aggregate({ _max: { order: true } });
+    const newBook = await prisma.book.create({
+      data: {
+        title: data.title.trim(),
+        author: data.author.trim(),
+        coverUrl: data.coverUrl || null,
+        genre: data.genre || null,
+        status: data.status || "wishlist",
+        order: (maxOrder._max.order ?? -1) + 1,
+      },
+    });
+    return Response.json(newBook);
+  } catch {
+    return Response.json({ error: "Erro ao criar livro" }, { status: 500 });
+  }
 }
