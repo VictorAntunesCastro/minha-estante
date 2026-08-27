@@ -8,20 +8,21 @@ import WishlistView from "./components/WishlistView";
 import Toast from "./components/Toast";
 
 const TABS = [
-  { id: "estante", label: "📚 Estante" },
-  { id: "wishlist", label: "🌟 Desejos" },
-  { id: "stats", label: "📊 Stats" },
+  { id: "estante",  label: "📚 Estante"  },
+  { id: "wishlist", label: "🌟 Desejos"  },
+  { id: "stats",    label: "📊 Stats"    },
 ];
 
 export default function Home() {
-  const [livros, setLivros] = useState([]);
+  const [livros, setLivros]                   = useState([]);
   const [livroSelecionado, setLivroSelecionado] = useState(null);
-  const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState(null);
-  const [filtro, setFiltro] = useState("todos");
-  const [aba, setAba] = useState("estante");
+  const [carregando, setCarregando]           = useState(true);
+  const [erro, setErro]                       = useState(null);
+  const [filtroStatus, setFiltroStatus]       = useState("todos");
+  const [filtroGenero, setFiltroGenero]       = useState("todos");
+  const [aba, setAba]                         = useState("estante");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
-  const [toast, setToast] = useState(null);
+  const [toast, setToast]                     = useState(null);
 
   function mostrarToast(mensagem, tipo = "sucesso") {
     setToast({ mensagem, tipo });
@@ -32,7 +33,7 @@ export default function Home() {
     fetch("/api/books")
       .then((res) => { if (!res.ok) throw new Error("Erro ao carregar livros"); return res.json(); })
       .then((data) => { setLivros(data); setCarregando(false); })
-      .catch((e) => { setErro(e.message); setCarregando(false); });
+      .catch((e)   => { setErro(e.message); setCarregando(false); });
   }
 
   useEffect(() => { buscarLivros(); }, []);
@@ -65,7 +66,7 @@ export default function Home() {
     });
     if (!res.ok) { mostrarToast("Erro ao salvar livro", "erro"); return; }
     const criado = await res.json();
-    setLivros((prev) => [criado, ...prev]);
+    setLivros((prev) => [...prev, criado]);
     setMostrarFormulario(false);
     mostrarToast("Livro adicionado! 📚");
   }
@@ -78,10 +79,8 @@ export default function Home() {
   }
 
   async function reordenarLivros(reordenado) {
-    // Atualiza localmente imediato
     const wishlist = livros.filter((l) => l.status === "wishlist");
     setLivros([...reordenado, ...wishlist]);
-    // Persiste no banco em paralelo
     await Promise.all(
       reordenado.map((livro, index) =>
         fetch(`/api/books/${livro.id}`, {
@@ -93,47 +92,73 @@ export default function Home() {
     );
   }
 
-  const livrosEstante = livros.filter((l) => l.status !== "wishlist");
-  const livrosFiltrados = filtro === "todos" ? livrosEstante : livrosEstante.filter((l) => l.status === filtro);
+  async function reordenarWishlist(reordenado) {
+    const estante = livros.filter((l) => l.status !== "wishlist");
+    setLivros([...estante, ...reordenado]);
+    await Promise.all(
+      reordenado.map((livro, index) =>
+        fetch(`/api/books/${livro.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order: index }),
+        })
+      )
+    );
+  }
+
+  const livrosEstante  = livros.filter((l) => l.status !== "wishlist");
   const livrosWishlist = livros.filter((l) => l.status === "wishlist");
+
+  /* Gêneros disponíveis na estante */
+  const generos = [...new Set(livrosEstante.map((l) => l.genre).filter(Boolean))].sort();
+
+  const livrosFiltrados = livrosEstante
+    .filter((l) => filtroStatus === "todos" || l.status === filtroStatus)
+    .filter((l) => filtroGenero === "todos" || l.genre === filtroGenero);
 
   const contadores = {
     todos: livrosEstante.length,
     lendo: livros.filter((l) => l.status === "lendo").length,
-    lido: livros.filter((l) => l.status === "lido").length,
+    lido:  livros.filter((l) => l.status === "lido").length,
   };
 
   return (
-    <main className="min-h-screen" style={{ background: "#fdf6ee", backgroundImage: "radial-gradient(#c8956044 1px, transparent 1px)", backgroundSize: "20px 20px" }}>
-      {/* Header */}
-      <div className="shadow-xl" style={{ background: "linear-gradient(135deg, #3d1f08 0%, #7c4a1e 50%, #3d1f08 100%)" }}>
-        <div className="h-1 w-full" style={{ background: "linear-gradient(90deg, #d97706, #fbbf24, #d97706)" }} />
+    <main className="min-h-screen" style={{ background: "#f5ede0", backgroundImage: "radial-gradient(#c8956033 1px, transparent 1px)", backgroundSize: "22px 22px" }}>
+
+      {/* ── Header ── */}
+      <div className="shadow-2xl" style={{ background: "linear-gradient(160deg, #1e0c02 0%, #5c2d0a 50%, #1e0c02 100%)" }}>
+        <div className="h-1 w-full" style={{ background: "linear-gradient(90deg, #92400e, #fbbf24, #d97706, #fbbf24, #92400e)" }} />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-5 pb-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="text-3xl sm:text-4xl">📚</div>
+            <div className="text-4xl drop-shadow-lg">📚</div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-amber-50 tracking-tight leading-none" style={{ fontFamily: "Georgia, serif" }}>
+              <h1 className="text-2xl sm:text-3xl font-bold text-amber-50 tracking-tight leading-none" style={{ fontFamily: "Georgia, serif", textShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>
                 Minha Estante
               </h1>
-              <p className="text-amber-400 text-xs mt-1">
+              <p className="text-amber-400/80 text-xs mt-1">
                 {livros.length} livro{livros.length !== 1 ? "s" : ""} · {contadores.lido} lido{contadores.lido !== 1 ? "s" : ""} · {contadores.lendo} lendo
               </p>
             </div>
           </div>
           <button
             onClick={() => setMostrarFormulario(true)}
-            className="px-4 sm:px-5 py-2 sm:py-2.5 bg-amber-400 text-amber-950 rounded-full text-sm font-bold hover:bg-amber-300 transition-colors shadow-lg"
+            className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-sm font-bold transition-all shadow-lg hover:shadow-amber-400/30 hover:scale-105 active:scale-95"
+            style={{ background: "linear-gradient(135deg, #fbbf24, #d97706)", color: "#1c0a00" }}
           >
             + Adicionar
           </button>
         </div>
+
+        {/* Tabs */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 flex gap-1 pt-2">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setAba(tab.id)}
               className={`px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold rounded-t-xl transition-all ${
-                aba === tab.id ? "bg-[#fdf6ee] text-amber-900 shadow-md" : "text-amber-300 hover:text-amber-100 hover:bg-white/10"
+                aba === tab.id
+                  ? "bg-[#f5ede0] text-amber-900 shadow-md"
+                  : "text-amber-400/70 hover:text-amber-200 hover:bg-white/10"
               }`}
             >
               {tab.label}
@@ -148,57 +173,102 @@ export default function Home() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        {erro && <p className="text-center text-red-600 mb-4 bg-red-50 border border-red-200 rounded-lg py-3">{erro}</p>}
-        {carregando && (
-          <div className="flex flex-col items-center justify-center py-20 text-amber-700/60">
-            <div className="text-4xl mb-3 animate-bounce">📚</div>
-            <p>Carregando sua estante...</p>
+        {erro && (
+          <div className="text-center text-red-700 mb-4 bg-red-50 border border-red-200 rounded-xl py-3 px-4 flex items-center justify-center gap-2">
+            <span>⚠️</span> {erro}
+            <button onClick={buscarLivros} className="ml-2 text-xs underline hover:no-underline">Tentar novamente</button>
           </div>
         )}
 
-        {/* Aba Estante */}
+        {carregando && (
+          <div className="flex flex-col items-center justify-center py-24 text-amber-700/50">
+            <div className="text-5xl mb-4 animate-bounce">📚</div>
+            <p style={{ fontFamily: "Georgia, serif" }}>Carregando sua estante...</p>
+          </div>
+        )}
+
+        {/* ── Aba Estante ── */}
         {!carregando && aba === "estante" && (
-          <>
-            <div className="flex gap-2 mb-6 flex-wrap">
+          <div className="animate-slide-up">
+            {/* Filtros de status */}
+            <div className="flex gap-2 mb-3 flex-wrap">
               {[["todos", "Todos", "📚"], ["lendo", "Lendo", "📖"], ["lido", "Lido", "✅"]].map(([val, label, icon]) => (
                 <button
                   key={val}
-                  onClick={() => setFiltro(val)}
+                  onClick={() => setFiltroStatus(val)}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all shadow-sm ${
-                    filtro === val
-                      ? "bg-amber-800 text-white shadow-amber-800/30 shadow-md scale-105"
+                    filtroStatus === val
+                      ? "bg-amber-800 text-white shadow-amber-800/25 shadow-md scale-105"
                       : "bg-white text-amber-800 border border-amber-200 hover:border-amber-400 hover:shadow-md"
                   }`}
                 >
                   <span>{icon}</span>
                   <span>{label}</span>
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${filtro === val ? "bg-amber-700 text-amber-200" : "bg-amber-100 text-amber-600"}`}>
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${filtroStatus === val ? "bg-amber-700 text-amber-200" : "bg-amber-100 text-amber-600"}`}>
                     {contadores[val]}
                   </span>
                 </button>
               ))}
             </div>
 
+            {/* Filtro por gênero */}
+            {generos.length > 0 && (
+              <div className="flex gap-2 mb-6 flex-wrap">
+                <button
+                  onClick={() => setFiltroGenero("todos")}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${
+                    filtroGenero === "todos"
+                      ? "bg-amber-700 text-white border-amber-700"
+                      : "bg-white text-amber-700 border-amber-200 hover:border-amber-400"
+                  }`}
+                >
+                  Todos os gêneros
+                </button>
+                {generos.map((g) => (
+                  <button
+                    key={g}
+                    onClick={() => setFiltroGenero(g)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${
+                      filtroGenero === g
+                        ? "bg-amber-700 text-white border-amber-700"
+                        : "bg-white text-amber-700 border-amber-200 hover:border-amber-400"
+                    }`}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {livrosFiltrados.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-amber-700/60">
+              <div className="flex flex-col items-center justify-center py-20 text-amber-700/50">
                 <span className="text-6xl mb-4">📚</span>
-                <p className="text-lg font-medium">
-                  {filtro === "todos" ? "Nenhum livro na estante ainda" : `Nenhum livro com status "${filtro}"`}
+                <p className="text-lg font-medium" style={{ fontFamily: "Georgia, serif" }}>
+                  {filtroStatus === "todos" && filtroGenero === "todos"
+                    ? "Nenhum livro na estante ainda"
+                    : "Nenhum livro com esse filtro"}
                 </p>
-                {filtro === "todos" && <p className="text-sm mt-1">Adicione o primeiro ou mova da lista de desejos!</p>}
+                {filtroStatus === "todos" && filtroGenero === "todos" && (
+                  <p className="text-sm mt-1">Adicione o primeiro ou mova da lista de desejos!</p>
+                )}
               </div>
             ) : (
               <BookShelf livros={livrosFiltrados} onSelect={setLivroSelecionado} onReorder={reordenarLivros} />
             )}
-          </>
+          </div>
         )}
 
-        {/* Aba Wishlist */}
+        {/* ── Aba Wishlist ── */}
         {!carregando && aba === "wishlist" && (
-          <WishlistView livros={livrosWishlist} onSelect={setLivroSelecionado} onMoveToReading={moverParaLendo} />
+          <WishlistView
+            livros={livrosWishlist}
+            onSelect={setLivroSelecionado}
+            onMoveToReading={moverParaLendo}
+            onReorder={reordenarWishlist}
+          />
         )}
 
-        {/* Aba Stats */}
+        {/* ── Aba Stats ── */}
         {!carregando && aba === "stats" && <StatsView livros={livros} />}
       </div>
 
@@ -218,13 +288,15 @@ export default function Home() {
   );
 }
 
+/* ── Stats ── */
 function StatsView({ livros }) {
-  const lidos = livros.filter((l) => l.status === "lido");
-  const lendo = livros.filter((l) => l.status === "lendo");
+  const lidos    = livros.filter((l) => l.status === "lido");
+  const lendo    = livros.filter((l) => l.status === "lendo");
   const wishlist = livros.filter((l) => l.status === "wishlist");
 
-  const mediaAvaliacao = lidos.filter((l) => l.rating).length > 0
-    ? (lidos.filter((l) => l.rating).reduce((acc, l) => acc + l.rating, 0) / lidos.filter((l) => l.rating).length).toFixed(1)
+  const lidosComNota = lidos.filter((l) => l.rating);
+  const mediaAvaliacao = lidosComNota.length > 0
+    ? (lidosComNota.reduce((acc, l) => acc + l.rating, 0) / lidosComNota.length).toFixed(1)
     : null;
 
   const generos = livros.reduce((acc, l) => {
@@ -241,20 +313,19 @@ function StatsView({ livros }) {
     return acc;
   }, {});
   const ultimosMeses = Object.entries(lidosPorMes).slice(-6);
-
   const maxMes = Math.max(...ultimosMeses.map(([, v]) => v), 1);
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Cards de resumo */}
+    <div className="flex flex-col gap-5 animate-slide-up">
+      {/* Cards resumo */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Total", value: livros.length, icon: "📚", color: "from-amber-100 to-amber-50" },
-          { label: "Lidos", value: lidos.length, icon: "✅", color: "from-green-100 to-green-50" },
-          { label: "Lendo", value: lendo.length, icon: "📖", color: "from-blue-100 to-blue-50" },
-          { label: "Quero ler", value: wishlist.length, icon: "🌟", color: "from-purple-100 to-purple-50" },
-        ].map(({ label, value, icon, color }) => (
-          <div key={label} className={`bg-gradient-to-br ${color} rounded-2xl p-4 shadow-sm border border-white`}>
+          { label: "Total",     value: livros.length, icon: "📚", from: "from-amber-100",  to: "to-amber-50"  },
+          { label: "Lidos",     value: lidos.length,  icon: "✅", from: "from-green-100",  to: "to-green-50"  },
+          { label: "Lendo",     value: lendo.length,  icon: "📖", from: "from-blue-100",   to: "to-blue-50"   },
+          { label: "Quero ler", value: wishlist.length,icon: "🌟", from: "from-purple-100", to: "to-purple-50" },
+        ].map(({ label, value, icon, from, to }) => (
+          <div key={label} className={`bg-gradient-to-br ${from} ${to} rounded-2xl p-4 shadow-sm border border-white`}>
             <div className="text-2xl mb-1">{icon}</div>
             <div className="text-3xl font-bold text-amber-950">{value}</div>
             <div className="text-xs text-amber-700 font-medium mt-0.5">{label}</div>
@@ -264,37 +335,36 @@ function StatsView({ livros }) {
 
       <div className="grid sm:grid-cols-2 gap-4">
         {/* Avaliação média */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-amber-100">
-          <h3 className="text-sm font-bold text-amber-900 mb-3">⭐ Avaliação média</h3>
+        <div className="paper-card rounded-2xl p-5 shadow-sm border border-amber-100">
+          <h3 className="text-sm font-bold text-amber-900 mb-3" style={{ fontFamily: "Georgia, serif" }}>⭐ Avaliação média</h3>
           {mediaAvaliacao ? (
-            <div className="flex items-end gap-2">
-              <span className="text-5xl font-bold text-amber-800">{mediaAvaliacao}</span>
-              <span className="text-amber-400 text-2xl mb-1">/ 5</span>
-            </div>
+            <>
+              <div className="flex items-end gap-2">
+                <span className="text-5xl font-bold text-amber-800">{mediaAvaliacao}</span>
+                <span className="text-amber-400 text-2xl mb-1">/ 5</span>
+              </div>
+              <div className="flex gap-0.5 mt-2">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <span key={s} className="text-lg">{s <= Math.round(mediaAvaliacao) ? "⭐" : "☆"}</span>
+                ))}
+              </div>
+            </>
           ) : (
             <p className="text-amber-400 text-sm">Nenhum livro avaliado ainda</p>
           )}
-          <div className="flex gap-0.5 mt-2">
-            {[1, 2, 3, 4, 5].map((s) => (
-              <span key={s} className="text-lg">{s <= Math.round(mediaAvaliacao || 0) ? "⭐" : "☆"}</span>
-            ))}
-          </div>
         </div>
 
         {/* Top gêneros */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-amber-100">
-          <h3 className="text-sm font-bold text-amber-900 mb-3">🏷️ Gêneros favoritos</h3>
+        <div className="paper-card rounded-2xl p-5 shadow-sm border border-amber-100">
+          <h3 className="text-sm font-bold text-amber-900 mb-3" style={{ fontFamily: "Georgia, serif" }}>🏷️ Gêneros favoritos</h3>
           {topGeneros.length === 0 ? (
             <p className="text-amber-400 text-sm">Nenhum gênero cadastrado ainda</p>
           ) : (
             <div className="flex flex-col gap-2">
               {topGeneros.map(([genero, count]) => (
                 <div key={genero} className="flex items-center gap-2">
-                  <div className="flex-1 bg-amber-50 rounded-full h-2 overflow-hidden">
-                    <div
-                      className="h-full bg-amber-600 rounded-full transition-all"
-                      style={{ width: `${(count / topGeneros[0][1]) * 100}%` }}
-                    />
+                  <div className="flex-1 bg-amber-100 rounded-full h-2 overflow-hidden">
+                    <div className="h-full bg-amber-700 rounded-full transition-all" style={{ width: `${(count / topGeneros[0][1]) * 100}%` }} />
                   </div>
                   <span className="text-xs text-amber-800 font-medium w-24 truncate">{genero}</span>
                   <span className="text-xs text-amber-500 w-4 text-right">{count}</span>
@@ -306,8 +376,8 @@ function StatsView({ livros }) {
       </div>
 
       {/* Lidos por mês */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm border border-amber-100">
-        <h3 className="text-sm font-bold text-amber-900 mb-4">📅 Livros lidos por mês</h3>
+      <div className="paper-card rounded-2xl p-5 shadow-sm border border-amber-100">
+        <h3 className="text-sm font-bold text-amber-900 mb-4" style={{ fontFamily: "Georgia, serif" }}>📅 Livros lidos por mês</h3>
         {ultimosMeses.length === 0 ? (
           <p className="text-amber-400 text-sm">Nenhum livro com data de conclusão ainda</p>
         ) : (
@@ -315,10 +385,7 @@ function StatsView({ livros }) {
             {ultimosMeses.map(([mes, count]) => (
               <div key={mes} className="flex-1 flex flex-col items-center gap-1">
                 <span className="text-xs font-bold text-amber-800">{count}</span>
-                <div
-                  className="w-full bg-amber-600 rounded-t-md transition-all"
-                  style={{ height: `${(count / maxMes) * 72}px` }}
-                />
+                <div className="w-full bg-amber-700 rounded-t-md transition-all" style={{ height: `${(count / maxMes) * 72}px` }} />
                 <span className="text-[10px] text-amber-500 text-center leading-tight">{mes}</span>
               </div>
             ))}

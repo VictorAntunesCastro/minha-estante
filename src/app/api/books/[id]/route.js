@@ -8,15 +8,27 @@ export async function PATCH(request, { params }) {
     const updated = await prisma.book.update({
       where: { id: Number(id) },
       data: {
-        ...(data.status !== undefined && { status: data.status }),
-        ...(data.rating !== undefined && { rating: data.rating }),
-        ...(data.notes !== undefined && { notes: data.notes }),
-        ...(data.nickname !== undefined && { nickname: data.nickname }),
-        ...(data.order !== undefined && { order: data.order }),
-        ...(data.startedAt !== undefined && { startedAt: data.startedAt ? new Date(data.startedAt) : null }),
-        ...(data.finishedAt !== undefined && { finishedAt: data.finishedAt ? new Date(data.finishedAt) : null }),
-        ...(data.status === "lido" && !data.finishedAt && { finishedAt: new Date() }),
-        ...(data.status === "lendo" && !data.startedAt && { startedAt: new Date() }),
+        ...(data.title      !== undefined && { title: data.title }),
+        ...(data.author     !== undefined && { author: data.author }),
+        ...(data.genre      !== undefined && { genre: data.genre }),
+        ...(data.coverUrl   !== undefined && { coverUrl: data.coverUrl }),
+        ...(data.status     !== undefined && { status: data.status }),
+        ...(data.rating     !== undefined && { rating: data.rating }),
+        ...(data.notes      !== undefined && { notes: data.notes }),
+        ...(data.nickname   !== undefined && { nickname: data.nickname }),
+        ...(data.order      !== undefined && { order: data.order }),
+        // Datas manuais têm prioridade; se não vieram, aplica lógica automática por status
+        ...(data.startedAt  !== undefined
+          ? { startedAt:  data.startedAt  ? new Date(data.startedAt)  : null }
+          : data.status === "lendo"    ? { startedAt: new Date() }
+          : data.status === "wishlist" ? { startedAt: null }
+          : {}),
+        ...(data.finishedAt !== undefined
+          ? { finishedAt: data.finishedAt ? new Date(data.finishedAt) : null }
+          : data.status === "lido"     ? { finishedAt: new Date() }
+          : data.status === "lendo"    ? { finishedAt: null }
+          : data.status === "wishlist" ? { finishedAt: null }
+          : {}),
       },
     });
     return Response.json(updated);
