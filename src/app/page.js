@@ -20,6 +20,9 @@ export default function Home() {
   const [erro, setErro]                       = useState(null);
   const [filtroStatus, setFiltroStatus]       = useState("todos");
   const [filtroGenero, setFiltroGenero]       = useState("todos");
+  const [filtroAutor, setFiltroAutor]         = useState("todos");
+  const [filtroAvaliacao, setFiltroAvaliacao] = useState(0);
+  const [mostrarFiltros, setMostrarFiltros]   = useState(false);
   const [aba, setAba]                         = useState("estante");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [toast, setToast]                     = useState(null);
@@ -30,10 +33,13 @@ export default function Home() {
 
   function buscarLivros() {
     setErro(null);
-    fetch("/api/books")
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    fetch("/api/books", { signal: controller.signal })
       .then((res) => { if (!res.ok) throw new Error("Erro ao carregar livros"); return res.json(); })
       .then((data) => { setLivros(data); setCarregando(false); })
-      .catch((e)   => { setErro(e.message); setCarregando(false); });
+      .catch((e) => { setErro(e.name === "AbortError" ? "Tempo esgotado. Verifique sua conexão." : e.message); setCarregando(false); })
+      .finally(() => clearTimeout(timeout));
   }
 
   useEffect(() => { buscarLivros(); }, []);
@@ -47,7 +53,7 @@ export default function Home() {
     if (!res.ok) { mostrarToast("Erro ao atualizar", "erro"); return; }
     const atualizado = await res.json();
     setLivros((prev) => prev.map((l) => (l.id === id ? atualizado : l)));
-    setLivroSelecionado(atualizado);
+    setLivroSelecionado((prev) => (prev?.id === id ? atualizado : prev));
   }
 
   async function deletarLivro(id) {
@@ -79,16 +85,18 @@ export default function Home() {
   }
 
   async function reordenarLivros(reordenado) {
-    const wishlist = livros.filter((l) => l.status === "wishlist");
-    setLivros([...reordenado, ...wishlist]);
+    const semEstante = livros.filter((l) => l.status === "wishlist" || !reordenado.find((r) => r.id === l.id));
+    setLivros([...reordenado, ...semEstante]);
     await Promise.all(
-      reordenado.map((livro, index) =>
-        fetch(`/api/books/${livro.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ order: index }),
-        })
-      )
+      reordenado
+        .filter((livro) => livro?.id)
+        .map((livro, index) =>
+          fetch(`/api/books/${livro.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ order: index }),
+          })
+        )
     );
   }
 
@@ -109,12 +117,17 @@ export default function Home() {
   const livrosEstante  = livros.filter((l) => l.status !== "wishlist");
   const livrosWishlist = livros.filter((l) => l.status === "wishlist");
 
-  /* Gêneros disponíveis na estante */
+  /* Gêneros e autores disponíveis na estante */
   const generos = [...new Set(livrosEstante.map((l) => l.genre).filter(Boolean))].sort();
+  const autores = [...new Set(livrosEstante.map((l) => l.author).filter(Boolean))].sort();
+
+  const filtrosAtivos = (filtroGenero !== "todos" ? 1 : 0) + (filtroAutor !== "todos" ? 1 : 0) + (filtroAvaliacao > 0 ? 1 : 0);
 
   const livrosFiltrados = livrosEstante
     .filter((l) => filtroStatus === "todos" || l.status === filtroStatus)
-    .filter((l) => filtroGenero === "todos" || l.genre === filtroGenero);
+    .filter((l) => filtroGenero === "todos" || l.genre === filtroGenero)
+    .filter((l) => filtroAutor === "todos" || l.author === filtroAutor)
+    .filter((l) => filtroAvaliacao === 0 || (l.rating ?? 0) >= filtroAvaliacao);
 
   const contadores = {
     todos: livrosEstante.length,
@@ -190,8 +203,8 @@ export default function Home() {
         {/* ── Aba Estante ── */}
         {!carregando && aba === "estante" && (
           <div className="animate-slide-up">
-            {/* Filtros de status */}
-            <div className="flex gap-2 mb-3 flex-wrap">
+            {/* Filtros de status + botão filtros */}
+            <div className="flex gap-2 mb-3 flex-wrap items-center">
               {[["todos", "Todos", "📚"], ["lendo", "Lendo", "📖"], ["lido", "Lido", "✅"]].map(([val, label, icon]) => (
                 <button
                   key={val}
@@ -209,34 +222,121 @@ export default function Home() {
                   </span>
                 </button>
               ))}
+
+              {/* Botão filtros */}
+              <button
+                onClick={() => setMostrarFiltros((v) => !v)}
+                className={`ml-auto flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all border ${
+                  mostrarFiltros || filtrosAtivos > 0
+                    ? "bg-amber-700 text-white border-amber-700 shadow-md"
+                    : "bg-white text-amber-700 border-amber-200 hover:border-amber-400"
+                }`}
+              >
+                🎛️ Filtros
+                {filtrosAtivos > 0 && (
+                  <span className="bg-amber-400 text-amber-950 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    {filtrosAtivos}
+                  </span>
+                )}
+              </button>
             </div>
 
-            {/* Filtro por gênero */}
-            {generos.length > 0 && (
-              <div className="flex gap-2 mb-6 flex-wrap">
-                <button
-                  onClick={() => setFiltroGenero("todos")}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${
-                    filtroGenero === "todos"
-                      ? "bg-amber-700 text-white border-amber-700"
-                      : "bg-white text-amber-700 border-amber-200 hover:border-amber-400"
-                  }`}
-                >
-                  Todos os gêneros
-                </button>
-                {generos.map((g) => (
-                  <button
-                    key={g}
-                    onClick={() => setFiltroGenero(g)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${
-                      filtroGenero === g
-                        ? "bg-amber-700 text-white border-amber-700"
-                        : "bg-white text-amber-700 border-amber-200 hover:border-amber-400"
-                    }`}
-                  >
-                    {g}
-                  </button>
-                ))}
+            {/* Painel de filtros */}
+            {mostrarFiltros && (
+              <div className="paper-card border border-amber-200 rounded-2xl p-4 mb-5 animate-slide-up flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-amber-800 uppercase tracking-wide">Filtros avançados</p>
+                  {filtrosAtivos > 0 && (
+                    <button
+                      onClick={() => { setFiltroGenero("todos"); setFiltroAutor("todos"); setFiltroAvaliacao(0); }}
+                      className="text-xs text-amber-600 hover:text-amber-900 underline"
+                    >
+                      Limpar tudo
+                    </button>
+                  )}
+                </div>
+
+                {/* Gênero */}
+                {generos.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-amber-700 mb-2">🏷️ Gênero</p>
+                    <div className="flex gap-2 flex-wrap">
+                      <button
+                        onClick={() => setFiltroGenero("todos")}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${
+                          filtroGenero === "todos" ? "bg-amber-700 text-white border-amber-700" : "bg-white text-amber-700 border-amber-200 hover:border-amber-400"
+                        }`}
+                      >
+                        Todos
+                      </button>
+                      {generos.map((g) => (
+                        <button
+                          key={g}
+                          onClick={() => setFiltroGenero(g)}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${
+                            filtroGenero === g ? "bg-amber-700 text-white border-amber-700" : "bg-white text-amber-700 border-amber-200 hover:border-amber-400"
+                          }`}
+                        >
+                          {g}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Autor */}
+                {autores.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-amber-700 mb-2">✍️ Autor</p>
+                    <div className="flex gap-2 flex-wrap">
+                      <button
+                        onClick={() => setFiltroAutor("todos")}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${
+                          filtroAutor === "todos" ? "bg-amber-700 text-white border-amber-700" : "bg-white text-amber-700 border-amber-200 hover:border-amber-400"
+                        }`}
+                      >
+                        Todos
+                      </button>
+                      {autores.map((a) => (
+                        <button
+                          key={a}
+                          onClick={() => setFiltroAutor(a)}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${
+                            filtroAutor === a ? "bg-amber-700 text-white border-amber-700" : "bg-white text-amber-700 border-amber-200 hover:border-amber-400"
+                          }`}
+                        >
+                          {a}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Avaliação mínima */}
+                <div>
+                  <p className="text-xs font-semibold text-amber-700 mb-2">⭐ Avaliação mínima</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setFiltroAvaliacao(0)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${
+                        filtroAvaliacao === 0 ? "bg-amber-700 text-white border-amber-700" : "bg-white text-amber-700 border-amber-200 hover:border-amber-400"
+                      }`}
+                    >
+                      Todas
+                    </button>
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setFiltroAvaliacao(s)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-all border flex items-center gap-1 ${
+                          filtroAvaliacao === s ? "bg-amber-700 text-white border-amber-700" : "bg-white text-amber-700 border-amber-200 hover:border-amber-400"
+                        }`}
+                      >
+                        {s}⭐+
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -244,11 +344,11 @@ export default function Home() {
               <div className="flex flex-col items-center justify-center py-20 text-amber-700/50">
                 <span className="text-6xl mb-4">📚</span>
                 <p className="text-lg font-medium" style={{ fontFamily: "Georgia, serif" }}>
-                  {filtroStatus === "todos" && filtroGenero === "todos"
+                  {filtroStatus === "todos" && filtroGenero === "todos" && filtroAutor === "todos" && filtroAvaliacao === 0
                     ? "Nenhum livro na estante ainda"
                     : "Nenhum livro com esse filtro"}
                 </p>
-                {filtroStatus === "todos" && filtroGenero === "todos" && (
+                {filtroStatus === "todos" && filtroGenero === "todos" && filtroAutor === "todos" && filtroAvaliacao === 0 && (
                   <p className="text-sm mt-1">Adicione o primeiro ou mova da lista de desejos!</p>
                 )}
               </div>

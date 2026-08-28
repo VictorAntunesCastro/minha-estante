@@ -25,7 +25,14 @@ model Book {
   notes       String?
   nickname    String?
   order       Int      @default(0)
+  shelfId     Int      @default(1)
   startedAt   DateTime?
   finishedAt  DateTime?
   createdAt   DateTime @default(now())
+}
+
+model Shelf {
+  id        Int    @id @default(autoincrement())
+  name      String
+  isDefault Boolean @default(false)
 }
