@@ -58,6 +58,32 @@ function normalizarCapaGoogle(imageLinks) {
     .replace("&edge=curl", "");
 }
 
+async function buscarAppleBooksBR(query) {
+  const url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&country=BR&media=ebook&entity=ebook&limit=6`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+  if (!res.ok) throw new Error("Apple Books indisponível");
+  const data = await res.json();
+
+  return (data.results || [])
+    .map((item) => {
+      const generoBruto =
+        (item.genres || []).find(
+          (g) => !["livros", "books", "ficção e literatura"].includes(g.toLowerCase())
+        ) ||
+        (item.genres || []).find((g) => !["livros", "books"].includes(g.toLowerCase())) ||
+        "";
+      const capaAltaRes = (item.artworkUrl100 || "").replace("100x100bb", "600x600bb");
+      return {
+        title:      item.trackName || "",
+        author:     item.artistName || "",
+        genre:      formatarGenero(generoBruto),
+        coverUrl:   capaAltaRes,
+        totalPages: null,
+      };
+    })
+    .filter((l) => l.title && l.author);
+}
+
 async function buscarGoogleBooks(query, apenasPortugues = true) {
   const filtroIdioma = apenasPortugues ? "&langRestrict=pt&country=BR" : "&country=BR";
   const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=8&printType=books${filtroIdioma}`;
@@ -68,6 +94,9 @@ async function buscarGoogleBooks(query, apenasPortugues = true) {
   return (data.items || [])
     .map((item) => {
       const info = item.volumeInfo || {};
+      if (apenasPortugues && info.language && !info.language.startsWith("pt")) {
+        return null;
+      }
       const categoriaBruta = (info.categories || [])[0] || "";
       return {
         title:      info.title || "",
@@ -77,12 +106,12 @@ async function buscarGoogleBooks(query, apenasPortugues = true) {
         totalPages: info.pageCount || null,
       };
     })
-    .filter((l) => l.title && l.author);
+    .filter((l) => l && l.title && l.author);
 }
 
 async function buscarOpenLibrary(query) {
   const fields = "title,author_name,subject,cover_i,number_of_pages_median,editions,editions.title,editions.cover_i,editions.language";
-  const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&lang=pt&fields=${fields}&limit=6`;
+  const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(`${query} language:por`)}&lang=pt&fields=${fields}&limit=6`;
   const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
   if (!res.ok) throw new Error("OpenLibrary indisponível");
   const data = await res.json();
@@ -112,13 +141,36 @@ export async function GET(request) {
   if (!query) return Response.json([]);
 
   try {
-    const livrosGooglePt = await buscarGoogleBooks(query, true);
-    if (livrosGooglePt.length > 0) {
-      return Response.json(livrosGooglePt.slice(0, 6));
+    const [appleRes, googleRes] = await Promise.allSettled([
+      buscarAppleBooksBR(query),
+      buscarGoogleBooks(query, true),
+    ]);
+
+    const livrosApple  = appleRes.status === "fulfilled" ? appleRes.value : [];
+    const livrosGoogle = googleRes.status === "fulfilled" ? googleRes.value : [];
+
+    // Combina priorizando as capas brasileiras em alta resolução da Apple Books BR
+    // e aproveita o totalPages da Google Books quando encontrar o mesmo livro
+    const combinados = [];
+    const vistos = new Set();
+
+    for (const item of [...livrosApple, ...livrosGoogle]) {
+      const chave = `${item.title.toLowerCase().trim()}|${item.author.toLowerCase().trim()}`;
+      if (vistos.has(chave)) continue;
+      vistos.add(chave);
+
+      if (!item.totalPages) {
+        const matchGoogle = livrosGoogle.find(
+          (g) => g.totalPages && g.title.toLowerCase().includes(item.title.toLowerCase().slice(0, 12))
+        );
+        if (matchGoogle) item.totalPages = matchGoogle.totalPages;
+      }
+
+      combinados.push(item);
     }
-    const livrosGoogleGeral = await buscarGoogleBooks(query, false);
-    if (livrosGoogleGeral.length > 0) {
-      return Response.json(livrosGoogleGeral.slice(0, 6));
+
+    if (combinados.length > 0) {
+      return Response.json(combinados.slice(0, 6));
     }
   } catch {
     // Continua para o fallback na OpenLibrary
