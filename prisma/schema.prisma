@@ -14,8 +14,18 @@ datasource db {
 }
 
 
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  name         String
+  passwordHash String
+  annualGoal   Int      @default(12)
+  createdAt    DateTime @default(now())
+}
+
 model Book {
   id          Int      @id @default(autoincrement())
+  userId      Int      @default(1)
   title       String
   author      String
   coverUrl    String?
@@ -36,7 +46,8 @@ model Book {
 }
 
 model Shelf {
-  id        Int    @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
+  userId    Int     @default(1)
   name      String
   isDefault Boolean @default(false)
 }

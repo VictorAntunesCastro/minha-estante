@@ -5,6 +5,7 @@ import BookShelf from "./components/BookShelf";
 import BookModal from "./components/BookModal";
 import AddBookModal from "./components/AddBookModal";
 import WishlistView from "./components/WishlistView";
+import AuthScreen from "./components/AuthScreen";
 import Toast from "./components/Toast";
 
 const TABS = [
@@ -14,6 +15,8 @@ const TABS = [
 ];
 
 export default function Home() {
+  const [usuario, setUsuario]                 = useState(null);
+  const [verificandoAuth, setVerificandoAuth] = useState(true);
   const [livros, setLivros]                   = useState([]);
   const [estantes, setEstantes]               = useState([]);
   const [estanteAtiva, setEstanteAtiva]       = useState("todas");
@@ -51,7 +54,32 @@ export default function Home() {
       .catch(() => {});
   }
 
-  useEffect(() => { buscarLivros(); }, []);
+  useEffect(() => {
+    fetch("/api/auth")
+      .then((res) => (res.ok ? res.json() : { user: null }))
+      .then((data) => {
+        if (data.user) {
+          setUsuario(data.user);
+          buscarLivros();
+        } else {
+          setCarregando(false);
+        }
+        setVerificandoAuth(false);
+      })
+      .catch(() => {
+        setCarregando(false);
+        setVerificandoAuth(false);
+      });
+  }, []);
+
+  async function handleLogout() {
+    await fetch("/api/auth", { method: "DELETE" });
+    setUsuario(null);
+    setLivros([]);
+    setEstantes([]);
+    setEstanteAtiva("todas");
+    setAba("estante");
+  }
 
   async function atualizarLivro(id, dados) {
     const res = await fetch(`/api/books/${id}`, {
@@ -189,31 +217,66 @@ export default function Home() {
     favoritos: livrosEstante.filter((l) => l.isFavorite).length,
   };
 
+  if (verificandoAuth) {
+    return (
+      <main
+        className="min-h-screen flex flex-col items-center justify-center"
+        style={{ background: "#f5ede0" }}
+      >
+        <div className="text-5xl mb-3 animate-bounce">📚</div>
+        <p className="text-amber-800/60 text-sm" style={{ fontFamily: "Georgia, serif" }}>
+          Abrindo sua estante...
+        </p>
+      </main>
+    );
+  }
+
+  if (!usuario) {
+    return (
+      <AuthScreen
+        onAuthenticated={(u) => {
+          setUsuario(u);
+          setCarregando(true);
+          buscarLivros();
+        }}
+      />
+    );
+  }
+
   return (
     <main className="min-h-screen" style={{ background: "#f5ede0", backgroundImage: "radial-gradient(#c8956033 1px, transparent 1px)", backgroundSize: "22px 22px" }}>
 
       {/* ── Header ── */}
       <div className="shadow-2xl" style={{ background: "linear-gradient(160deg, #1e0c02 0%, #5c2d0a 50%, #1e0c02 100%)" }}>
         <div className="h-1 w-full" style={{ background: "linear-gradient(90deg, #92400e, #fbbf24, #d97706, #fbbf24, #92400e)" }} />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-5 pb-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-5 pb-4 flex justify-between items-center gap-2">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="text-4xl drop-shadow-lg">📚</div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-amber-50 tracking-tight leading-none" style={{ fontFamily: "Georgia, serif", textShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold text-amber-50 tracking-tight leading-none truncate" style={{ fontFamily: "Georgia, serif", textShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>
                 Minha Estante
               </h1>
-              <p className="text-amber-400/80 text-xs mt-1">
-                {livros.length} livro{livros.length !== 1 ? "s" : ""} · {contadores.lido} lido{contadores.lido !== 1 ? "s" : ""} · {contadores.lendo} lendo
+              <p className="text-amber-400/80 text-xs mt-1 truncate">
+                Olá, {usuario.name} · {livros.length} livro{livros.length !== 1 ? "s" : ""} · {contadores.lido} lido{contadores.lido !== 1 ? "s" : ""} · {contadores.lendo} lendo
               </p>
             </div>
           </div>
-          <button
-            onClick={() => setMostrarFormulario(true)}
-            className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-sm font-bold transition-all shadow-lg hover:shadow-amber-400/30 hover:scale-105 active:scale-95"
-            style={{ background: "linear-gradient(135deg, #fbbf24, #d97706)", color: "#1c0a00" }}
-          >
-            + Adicionar
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => setMostrarFormulario(true)}
+              className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-sm font-bold transition-all shadow-lg hover:shadow-amber-400/30 hover:scale-105 active:scale-95"
+              style={{ background: "linear-gradient(135deg, #fbbf24, #d97706)", color: "#1c0a00" }}
+            >
+              + Adicionar
+            </button>
+            <button
+              onClick={handleLogout}
+              title="Sair da conta"
+              className="px-3 py-2 rounded-full text-xs font-semibold text-amber-300/80 hover:text-amber-100 hover:bg-white/10 transition"
+            >
+              Sair
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -575,7 +638,13 @@ export default function Home() {
         )}
 
         {/* ── Aba Stats ── */}
-        {!carregando && aba === "stats" && <StatsView livros={livros} />}
+        {!carregando && aba === "stats" && (
+          <StatsView
+            livros={livros}
+            usuario={usuario}
+            onUpdateUser={setUsuario}
+          />
+        )}
 
         {/* ── Rodapé discreto com dedicatória ── */}
         <footer className="mt-14 pt-6 border-t border-amber-900/10 text-center flex flex-col items-center gap-2">
@@ -619,26 +688,25 @@ export default function Home() {
 }
 
 /* ── Stats ── */
-function StatsView({ livros }) {
+function StatsView({ livros, usuario, onUpdateUser }) {
   const anoAtual = new Date().getFullYear();
-  const chaveStorage = `minha_estante_meta_${anoAtual}`;
-
-  const [metaAnual, setMetaAnual] = useState(() => {
-    if (typeof window === "undefined") return 12;
-    const salvo = window.localStorage.getItem(chaveStorage);
-    return salvo ? Math.max(1, Number(salvo)) : 12;
-  });
+  const metaAnual = usuario?.annualGoal || 12;
   const [editandoMeta, setEditandoMeta] = useState(false);
   const [inputMeta, setInputMeta]       = useState(String(metaAnual));
 
-  function salvarMeta(e) {
+  async function salvarMeta(e) {
     e.preventDefault();
     const valor = Math.max(1, Math.min(365, Number(inputMeta) || 12));
-    setMetaAnual(valor);
     setInputMeta(String(valor));
     setEditandoMeta(false);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(chaveStorage, String(valor));
+    const res = await fetch("/api/auth", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ annualGoal: valor }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.user) onUpdateUser?.(data.user);
     }
   }
 

@@ -4,10 +4,10 @@ import path from "path";
 
 const globalForPrisma = globalThis;
 
-if (!globalForPrisma.prismaV2) {
+if (!globalForPrisma.prismaV3) {
   const dbPath = path.resolve(process.cwd(), "prisma/dev.db");
   const adapter = new PrismaBetterSqlite3({ url: `file:${dbPath}` });
-  globalForPrisma.prismaV2 = new PrismaClient({ adapter });
+  globalForPrisma.prismaV3 = new PrismaClient({ adapter });
 }
 
-export const prisma = globalForPrisma.prismaV2;
+export const prisma = globalForPrisma.prismaV3;

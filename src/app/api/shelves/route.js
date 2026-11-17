@@ -1,11 +1,18 @@
 import { prisma } from "../../../lib/prisma";
+import { getCurrentUser } from "../../../lib/auth";
 
 export async function GET() {
   try {
-    let shelves = await prisma.shelf.findMany({ orderBy: { id: "asc" } });
+    const user = await getCurrentUser();
+    if (!user) return Response.json({ error: "Não autenticado" }, { status: 401 });
+
+    let shelves = await prisma.shelf.findMany({
+      where: { userId: user.id },
+      orderBy: { id: "asc" },
+    });
     if (shelves.length === 0) {
       const padrao = await prisma.shelf.create({
-        data: { id: 1, name: "Principal", isDefault: true },
+        data: { userId: user.id, name: "Principal", isDefault: true },
       });
       shelves = [padrao];
     }
@@ -17,13 +24,16 @@ export async function GET() {
 
 export async function POST(request) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return Response.json({ error: "Não autenticado" }, { status: 401 });
+
     const data = await request.json();
     const nome = data.name?.trim();
     if (!nome) {
       return Response.json({ error: "Nome da estante é obrigatório" }, { status: 400 });
     }
     const nova = await prisma.shelf.create({
-      data: { name: nome, isDefault: false },
+      data: { userId: user.id, name: nome, isDefault: false },
     });
     return Response.json(nova);
   } catch {

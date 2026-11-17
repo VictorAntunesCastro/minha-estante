@@ -1,4 +1,5 @@
 import { prisma } from "../../../../lib/prisma";
+import { getCurrentUser } from "../../../../lib/auth";
 
 function parseDateInput(val) {
   if (!val) return null;
@@ -10,11 +11,23 @@ function parseDateInput(val) {
 
 export async function PATCH(request, { params }) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return Response.json({ error: "Não autenticado" }, { status: 401 });
+
     const { id } = await params;
+    const bookId = Number(id);
+
+    const existente = await prisma.book.findFirst({
+      where: { id: bookId, userId: user.id },
+    });
+    if (!existente) {
+      return Response.json({ error: "Livro não encontrado" }, { status: 404 });
+    }
+
     const data = await request.json();
 
     const updated = await prisma.book.update({
-      where: { id: Number(id) },
+      where: { id: bookId },
       data: {
         ...(data.title      !== undefined && { title: data.title }),
         ...(data.author     !== undefined && { author: data.author }),
@@ -52,8 +65,13 @@ export async function PATCH(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return Response.json({ error: "Não autenticado" }, { status: 401 });
+
     const { id } = await params;
-    await prisma.book.delete({ where: { id: Number(id) } });
+    const bookId = Number(id);
+
+    await prisma.book.deleteMany({ where: { id: bookId, userId: user.id } });
     return Response.json({ ok: true });
   } catch {
     return Response.json({ error: "Erro ao deletar livro" }, { status: 500 });
