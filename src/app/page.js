@@ -37,8 +37,7 @@ export default function Home() {
     setToast({ mensagem, tipo });
   }
 
-  function buscarLivros(limparErro = false) {
-    if (limparErro) setErro(null);
+  function buscarLivros() {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
     fetch("/api/books", { signal: controller.signal })
@@ -52,7 +51,7 @@ export default function Home() {
       .catch(() => {});
   }
 
-  useEffect(() => { buscarLivros(false); }, []);
+  useEffect(() => { buscarLivros(); }, []);
 
   async function atualizarLivro(id, dados) {
     const res = await fetch(`/api/books/${id}`, {
@@ -244,7 +243,7 @@ export default function Home() {
         {erro && (
           <div className="text-center text-red-700 mb-4 bg-red-50 border border-red-200 rounded-xl py-3 px-4 flex items-center justify-center gap-2">
             <span>⚠️</span> {erro}
-            <button onClick={() => buscarLivros(true)} className="ml-2 text-xs underline hover:no-underline">Tentar novamente</button>
+            <button onClick={() => { setErro(null); buscarLivros(); }} className="ml-2 text-xs underline hover:no-underline">Tentar novamente</button>
           </div>
         )}
 
