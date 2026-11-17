@@ -524,9 +524,16 @@ function StatsView({ livros }) {
     }
   }
 
-  const lidos    = livros.filter((l) => l.status === "lido");
-  const lendo    = livros.filter((l) => l.status === "lendo");
-  const wishlist = livros.filter((l) => l.status === "wishlist");
+  const lidos     = livros.filter((l) => l.status === "lido");
+  const lendo     = livros.filter((l) => l.status === "lendo");
+  const wishlist  = livros.filter((l) => l.status === "wishlist");
+  const favoritos = livros.filter((l) => l.isFavorite);
+
+  const totalPaginasLidas = livros.reduce((acc, l) => {
+    if (l.status === "lido") return acc + (l.totalPages || l.currentPage || 0);
+    if (l.status === "lendo") return acc + (l.currentPage || 0);
+    return acc;
+  }, 0);
 
   const lidosNoAno = lidos.filter((l) => {
     const dataRef = l.finishedAt || l.createdAt;
@@ -562,16 +569,18 @@ function StatsView({ livros }) {
   return (
     <div className="flex flex-col gap-5 animate-slide-up">
       {/* Cards resumo */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
         {[
-          { label: "Total",     value: livros.length, icon: "📚", from: "from-amber-100",  to: "to-amber-50"  },
-          { label: "Lidos",     value: lidos.length,  icon: "✅", from: "from-green-100",  to: "to-green-50"  },
-          { label: "Lendo",     value: lendo.length,  icon: "📖", from: "from-blue-100",   to: "to-blue-50"   },
-          { label: "Quero ler", value: wishlist.length,icon: "🌟", from: "from-purple-100", to: "to-purple-50" },
+          { label: "Total",         value: livros.length,                             icon: "📚", from: "from-amber-100",  to: "to-amber-50"  },
+          { label: "Lidos",         value: lidos.length,                              icon: "✅", from: "from-green-100",  to: "to-green-50"  },
+          { label: "Lendo",         value: lendo.length,                              icon: "📖", from: "from-blue-100",   to: "to-blue-50"   },
+          { label: "Quero ler",     value: wishlist.length,                           icon: "🌟", from: "from-purple-100", to: "to-purple-50" },
+          { label: "Favoritos",     value: favoritos.length,                          icon: "❤️", from: "from-rose-100",   to: "to-rose-50"   },
+          { label: "Páginas lidas", value: totalPaginasLidas.toLocaleString("pt-BR"), icon: "📄", from: "from-orange-100", to: "to-amber-50"  },
         ].map(({ label, value, icon, from, to }) => (
           <div key={label} className={`bg-gradient-to-br ${from} ${to} rounded-2xl p-4 shadow-sm border border-white`}>
             <div className="text-2xl mb-1">{icon}</div>
-            <div className="text-3xl font-bold text-amber-950">{value}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-amber-950 truncate">{value}</div>
             <div className="text-xs text-amber-700 font-medium mt-0.5">{label}</div>
           </div>
         ))}
