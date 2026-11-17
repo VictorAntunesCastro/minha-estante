@@ -26,6 +26,7 @@ export default function Home() {
   const [mostrarFiltros, setMostrarFiltros]   = useState(false);
   const [aba, setAba]                         = useState("estante");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [mostrarDedicatoria, setMostrarDedicatoria] = useState(false);
   const [toast, setToast]                     = useState(null);
 
   function mostrarToast(mensagem, tipo = "sucesso") {
@@ -127,7 +128,13 @@ export default function Home() {
   const termoBusca = buscaEstante.trim().toLowerCase();
 
   const livrosFiltrados = livrosEstante
-    .filter((l) => filtroStatus === "todos" || l.status === filtroStatus)
+    .filter((l) =>
+      filtroStatus === "todos"
+        ? true
+        : filtroStatus === "favoritos"
+        ? Boolean(l.isFavorite)
+        : l.status === filtroStatus
+    )
     .filter((l) => filtroGenero === "todos" || l.genre === filtroGenero)
     .filter((l) => filtroAutor === "todos" || l.author === filtroAutor)
     .filter((l) => filtroAvaliacao === 0 || (l.rating ?? 0) >= filtroAvaliacao)
@@ -139,9 +146,10 @@ export default function Home() {
     );
 
   const contadores = {
-    todos: livrosEstante.length,
-    lendo: livros.filter((l) => l.status === "lendo").length,
-    lido:  livros.filter((l) => l.status === "lido").length,
+    todos:     livrosEstante.length,
+    lendo:     livros.filter((l) => l.status === "lendo").length,
+    lido:      livros.filter((l) => l.status === "lido").length,
+    favoritos: livrosEstante.filter((l) => l.isFavorite).length,
   };
 
   return (
@@ -214,7 +222,7 @@ export default function Home() {
           <div className="animate-slide-up">
             {/* Filtros de status + botão filtros */}
             <div className="flex gap-2 mb-3 flex-wrap items-center">
-              {[["todos", "Todos", "📚"], ["lendo", "Lendo", "📖"], ["lido", "Lido", "✅"]].map(([val, label, icon]) => (
+              {[["todos", "Todos", "📚"], ["lendo", "Lendo", "📖"], ["lido", "Lido", "✅"], ["favoritos", "Favoritos", "❤️"]].map(([val, label, icon]) => (
                 <button
                   key={val}
                   onClick={() => setFiltroStatus(val)}
@@ -456,6 +464,24 @@ export default function Home() {
 
         {/* ── Aba Stats ── */}
         {!carregando && aba === "stats" && <StatsView livros={livros} />}
+
+        {/* ── Rodapé discreto com dedicatória ── */}
+        <footer className="mt-14 pt-6 border-t border-amber-900/10 text-center flex flex-col items-center gap-2">
+          <button
+            onClick={() => setMostrarDedicatoria((v) => !v)}
+            className="text-xs text-amber-800/60 hover:text-amber-900 transition flex items-center gap-1.5 group"
+            style={{ fontFamily: "Georgia, serif" }}
+          >
+            <span>Feito com ❤️ para uma leitora muito especial</span>
+            <span className="group-hover:scale-125 transition-transform">💌</span>
+          </button>
+
+          {mostrarDedicatoria && (
+            <div className="paper-card border border-amber-300/80 rounded-2xl px-5 py-3.5 max-w-sm text-xs text-amber-900 shadow-md animate-slide-up italic" style={{ fontFamily: "Georgia, serif" }}>
+              “Para você guardar cada história que já viveu nas páginas e todas as próximas que ainda vai descobrir. Com todo o meu amor! ❤️”
+            </div>
+          )}
+        </footer>
       </div>
 
       {livroSelecionado && (

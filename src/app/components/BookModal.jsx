@@ -194,21 +194,36 @@ export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
             </div>
           </div>
 
-          {/* ── Avaliação ── */}
-          <div>
-            <p className="text-xs font-semibold text-amber-800 mb-2 uppercase tracking-wide">Avaliação</p>
-            <div className="flex gap-1 items-center">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  onClick={() => onUpdate(livro.id, { rating: livro.rating === star ? null : star })}
-                  className="text-2xl leading-none hover:scale-125 transition-transform active:scale-110"
-                >
-                  {star <= (livro.rating || 0) ? "⭐" : "☆"}
-                </button>
-              ))}
-              {livro.rating && <span className="text-xs text-amber-500 ml-2">{livro.rating}/5</span>}
+          {/* ── Avaliação + Favorito ── */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <p className="text-xs font-semibold text-amber-800 mb-2 uppercase tracking-wide">Avaliação</p>
+              <div className="flex gap-1 items-center">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => onUpdate(livro.id, { rating: livro.rating === star ? null : star })}
+                    className="text-2xl leading-none hover:scale-125 transition-transform active:scale-110"
+                  >
+                    {star <= (livro.rating || 0) ? "⭐" : "☆"}
+                  </button>
+                ))}
+                {livro.rating && <span className="text-xs text-amber-500 ml-2">{livro.rating}/5</span>}
+              </div>
             </div>
+
+            <button
+              type="button"
+              onClick={() => onUpdate(livro.id, { isFavorite: !livro.isFavorite })}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all border ${
+                livro.isFavorite
+                  ? "bg-rose-100 text-rose-800 border-rose-300 shadow-sm scale-105"
+                  : "bg-white text-amber-700 border-amber-200 hover:border-rose-300 hover:text-rose-700"
+              }`}
+            >
+              <span>{livro.isFavorite ? "❤️" : "🤍"}</span>
+              {livro.isFavorite ? "Favorito" : "Favoritar"}
+            </button>
           </div>
 
           {/* ── Gênero + Apelido ── */}

@@ -22,6 +22,7 @@ model Book {
   genre       String?
   status      String   @default("wishlist")
   rating      Int?
+  isFavorite  Boolean  @default(false)
   notes       String?
   quote       String?
   nickname    String?

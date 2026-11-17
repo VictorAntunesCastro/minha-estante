@@ -86,6 +86,14 @@ function Book({ livro, index, dragIndex, overIndex, onSelect, onDragStart, onDra
       style={{ height: h }}
     >
       {livro.status === "lendo" && <MarcadorLendo />}
+      {livro.isFavorite && (
+        <span
+          title="Livro favorito"
+          className="absolute -top-2 left-1 text-[11px] z-20 drop-shadow pointer-events-none"
+        >
+          ❤️
+        </span>
+      )}
 
       {livro.coverUrl ? (
         <div className="relative h-full w-16 flex-shrink-0">
@@ -165,6 +173,11 @@ export default function BookShelf({ livros, onSelect, onReorder }) {
                     style={{ height: h }}
                   >
                     {livro.status === "lendo" && <MarcadorLendo />}
+                    {livro.isFavorite && (
+                      <span className="absolute -top-2 left-0.5 text-[10px] z-20 drop-shadow pointer-events-none">
+                        ❤️
+                      </span>
+                    )}
                     {livro.coverUrl ? (
                       <div className="relative h-full w-12">
                         <Lombada livro={livro} />
