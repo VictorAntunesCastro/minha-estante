@@ -22,6 +22,7 @@ export default function Home() {
   const [filtroGenero, setFiltroGenero]       = useState("todos");
   const [filtroAutor, setFiltroAutor]         = useState("todos");
   const [filtroAvaliacao, setFiltroAvaliacao] = useState(0);
+  const [buscaEstante, setBuscaEstante]       = useState("");
   const [mostrarFiltros, setMostrarFiltros]   = useState(false);
   const [aba, setAba]                         = useState("estante");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
@@ -31,8 +32,8 @@ export default function Home() {
     setToast({ mensagem, tipo });
   }
 
-  function buscarLivros() {
-    setErro(null);
+  function buscarLivros(limparErro = false) {
+    if (limparErro) setErro(null);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
     fetch("/api/books", { signal: controller.signal })
@@ -42,7 +43,7 @@ export default function Home() {
       .finally(() => clearTimeout(timeout));
   }
 
-  useEffect(() => { buscarLivros(); }, []);
+  useEffect(() => { buscarLivros(false); }, []);
 
   async function atualizarLivro(id, dados) {
     const res = await fetch(`/api/books/${id}`, {
@@ -50,10 +51,11 @@ export default function Home() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(dados),
     });
-    if (!res.ok) { mostrarToast("Erro ao atualizar", "erro"); return; }
+    if (!res.ok) { mostrarToast("Erro ao atualizar", "erro"); return null; }
     const atualizado = await res.json();
     setLivros((prev) => prev.map((l) => (l.id === id ? atualizado : l)));
     setLivroSelecionado((prev) => (prev?.id === id ? atualizado : prev));
+    return atualizado;
   }
 
   async function deletarLivro(id) {
@@ -84,34 +86,32 @@ export default function Home() {
     setAba("estante");
   }
 
+  async function salvarOrdemNoBanco(listaOrdenada) {
+    const orderedIds = listaOrdenada.map((l) => l?.id).filter(Boolean);
+    if (orderedIds.length === 0) return;
+    const res = await fetch("/api/books/reorder", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderedIds }),
+    });
+    if (!res.ok) {
+      mostrarToast("Erro ao salvar nova ordem", "erro");
+    }
+  }
+
   async function reordenarLivros(reordenado) {
-    const semEstante = livros.filter((l) => l.status === "wishlist" || !reordenado.find((r) => r.id === l.id));
-    setLivros([...reordenado, ...semEstante]);
-    await Promise.all(
-      reordenado
-        .filter((livro) => livro?.id)
-        .map((livro, index) =>
-          fetch(`/api/books/${livro.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ order: index }),
-          })
-        )
+    const idsReordenados = new Set(reordenado.map((r) => r.id));
+    let idx = 0;
+    const novaEstante = livrosEstante.map((livro) =>
+      idsReordenados.has(livro.id) ? reordenado[idx++] : livro
     );
+    setLivros([...novaEstante, ...livrosWishlist]);
+    await salvarOrdemNoBanco(novaEstante);
   }
 
   async function reordenarWishlist(reordenado) {
-    const estante = livros.filter((l) => l.status !== "wishlist");
-    setLivros([...estante, ...reordenado]);
-    await Promise.all(
-      reordenado.map((livro, index) =>
-        fetch(`/api/books/${livro.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ order: index }),
-        })
-      )
-    );
+    setLivros([...livrosEstante, ...reordenado]);
+    await salvarOrdemNoBanco(reordenado);
   }
 
   const livrosEstante  = livros.filter((l) => l.status !== "wishlist");
@@ -123,11 +123,19 @@ export default function Home() {
 
   const filtrosAtivos = (filtroGenero !== "todos" ? 1 : 0) + (filtroAutor !== "todos" ? 1 : 0) + (filtroAvaliacao > 0 ? 1 : 0);
 
+  const termoBusca = buscaEstante.trim().toLowerCase();
+
   const livrosFiltrados = livrosEstante
     .filter((l) => filtroStatus === "todos" || l.status === filtroStatus)
     .filter((l) => filtroGenero === "todos" || l.genre === filtroGenero)
     .filter((l) => filtroAutor === "todos" || l.author === filtroAutor)
-    .filter((l) => filtroAvaliacao === 0 || (l.rating ?? 0) >= filtroAvaliacao);
+    .filter((l) => filtroAvaliacao === 0 || (l.rating ?? 0) >= filtroAvaliacao)
+    .filter((l) =>
+      !termoBusca ||
+      l.title.toLowerCase().includes(termoBusca) ||
+      l.author.toLowerCase().includes(termoBusca) ||
+      (l.nickname && l.nickname.toLowerCase().includes(termoBusca))
+    );
 
   const contadores = {
     todos: livrosEstante.length,
@@ -189,7 +197,7 @@ export default function Home() {
         {erro && (
           <div className="text-center text-red-700 mb-4 bg-red-50 border border-red-200 rounded-xl py-3 px-4 flex items-center justify-center gap-2">
             <span>⚠️</span> {erro}
-            <button onClick={buscarLivros} className="ml-2 text-xs underline hover:no-underline">Tentar novamente</button>
+            <button onClick={() => buscarLivros(true)} className="ml-2 text-xs underline hover:no-underline">Tentar novamente</button>
           </div>
         )}
 
@@ -223,10 +231,28 @@ export default function Home() {
                 </button>
               ))}
 
+              {/* Busca rápida na estante */}
+              <div className="relative flex-1 min-w-44 sm:max-w-xs ml-auto">
+                <input
+                  value={buscaEstante}
+                  onChange={(e) => setBuscaEstante(e.target.value)}
+                  placeholder="🔍 Buscar na estante..."
+                  className="w-full bg-white border border-amber-200 focus:border-amber-400 rounded-full px-3.5 py-2 text-xs sm:text-sm text-amber-950 placeholder-amber-400 focus:outline-none shadow-sm transition"
+                />
+                {buscaEstante && (
+                  <button
+                    onClick={() => setBuscaEstante("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-400 hover:text-amber-700 text-xs"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
               {/* Botão filtros */}
               <button
                 onClick={() => setMostrarFiltros((v) => !v)}
-                className={`ml-auto flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all border ${
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all border ${
                   mostrarFiltros || filtrosAtivos > 0
                     ? "bg-amber-700 text-white border-amber-700 shadow-md"
                     : "bg-white text-amber-700 border-amber-200 hover:border-amber-400"
@@ -344,11 +370,11 @@ export default function Home() {
               <div className="flex flex-col items-center justify-center py-20 text-amber-700/50">
                 <span className="text-6xl mb-4">📚</span>
                 <p className="text-lg font-medium" style={{ fontFamily: "Georgia, serif" }}>
-                  {filtroStatus === "todos" && filtroGenero === "todos" && filtroAutor === "todos" && filtroAvaliacao === 0
+                  {filtroStatus === "todos" && filtroGenero === "todos" && filtroAutor === "todos" && filtroAvaliacao === 0 && !termoBusca
                     ? "Nenhum livro na estante ainda"
-                    : "Nenhum livro com esse filtro"}
+                    : "Nenhum livro encontrado com esse filtro"}
                 </p>
-                {filtroStatus === "todos" && filtroGenero === "todos" && filtroAutor === "todos" && filtroAvaliacao === 0 && (
+                {filtroStatus === "todos" && filtroGenero === "todos" && filtroAutor === "todos" && filtroAvaliacao === 0 && !termoBusca && (
                   <p className="text-sm mt-1">Adicione o primeiro ou mova da lista de desejos!</p>
                 )}
               </div>
@@ -406,12 +432,14 @@ function StatsView({ livros }) {
   }, {});
   const topGeneros = Object.entries(generos).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
-  const lidosPorMes = lidos.reduce((acc, l) => {
-    if (!l.finishedAt) return acc;
-    const mes = new Date(l.finishedAt).toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
-    acc[mes] = (acc[mes] || 0) + 1;
-    return acc;
-  }, {});
+  const lidosPorMes = [...lidos]
+    .filter((l) => l.finishedAt)
+    .sort((a, b) => new Date(a.finishedAt) - new Date(b.finishedAt))
+    .reduce((acc, l) => {
+      const mes = new Date(l.finishedAt).toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
+      acc[mes] = (acc[mes] || 0) + 1;
+      return acc;
+    }, {});
   const ultimosMeses = Object.entries(lidosPorMes).slice(-6);
   const maxMes = Math.max(...ultimosMeses.map(([, v]) => v), 1);
 

@@ -51,6 +51,19 @@ function Lombada({ livro, className = "" }) {
   );
 }
 
+function MarcadorLendo() {
+  return (
+    <div
+      title="Lendo agora"
+      className="absolute -top-2 right-2 w-2.5 h-5 z-20 drop-shadow-sm pointer-events-none"
+      style={{
+        background: "linear-gradient(180deg, #ef4444 0%, #b91c1c 100%)",
+        clipPath: "polygon(0 0, 100% 0, 100% 100%, 50% 75%, 0 100%)",
+      }}
+    />
+  );
+}
+
 function Book({ livro, index, dragIndex, overIndex, onSelect, onDragStart, onDragOver, onDrop, onDragEnd }) {
   const isDragging = dragIndex === index;
   const isOver = overIndex === index && dragIndex !== index;
@@ -72,6 +85,8 @@ function Book({ livro, index, dragIndex, overIndex, onSelect, onDragStart, onDra
       `}
       style={{ height: h }}
     >
+      {livro.status === "lendo" && <MarcadorLendo />}
+
       {livro.coverUrl ? (
         <div className="relative h-full w-16 flex-shrink-0">
           <Lombada livro={livro} />
@@ -87,9 +102,12 @@ function Book({ livro, index, dragIndex, overIndex, onSelect, onDragStart, onDra
         </div>
       )}
 
-      <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-amber-950/95 text-amber-50 text-[10px] px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-20 max-w-40 text-center leading-tight">
+      <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-amber-950/95 text-amber-50 text-[10px] px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-20 max-w-44 text-center leading-tight">
         <p className="font-semibold truncate">{livro.title}</p>
         <p className="text-amber-400 truncate">{livro.author}</p>
+        {livro.rating > 0 && (
+          <p className="text-[9px] mt-0.5 tracking-tighter">{"⭐".repeat(livro.rating)}</p>
+        )}
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-amber-950/95" />
       </div>
     </div>
@@ -120,7 +138,7 @@ export default function BookShelf({ livros, onSelect, onReorder }) {
   }
 
   if (isMobile) {
-    const SHELF_SIZE_MOBILE = 6;
+    const SHELF_SIZE_MOBILE = 5;
     const shelvesMobile = [];
     for (let i = 0; i < livros.length; i += SHELF_SIZE_MOBILE) {
       shelvesMobile.push(livros.slice(i, i + SHELF_SIZE_MOBILE));
@@ -133,13 +151,12 @@ export default function BookShelf({ livros, onSelect, onReorder }) {
           <div key={shelfIdx} className="relative">
             <div className="absolute left-0 top-0 bottom-5 w-3 wood-side rounded-tl-md rounded-bl-sm z-10" />
             <div className="absolute right-0 top-0 bottom-5 w-3 wood-side rounded-tr-md rounded-br-sm z-10" />
-            <div className="wood-shelf mx-3 px-3 pt-4 pb-1 flex items-end gap-1 min-h-40 flex-wrap" >
+            <div className="wood-shelf mx-3 px-3 pt-5 pb-1 flex items-end gap-1.5 min-h-40 flex-wrap">
               <div className="absolute top-0 left-3 right-3 h-2 pointer-events-none"
                 style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.25) 0%, transparent 100%)" }} />
               {shelfBooks.map((livro) => {
-                const heights = [120, 110, 128, 114, 132, 108];
+                const heights = [116, 108, 122, 112, 126, 106];
                 const h = heights[livro.id % heights.length];
-                const { bg, mid, text } = spineColor(livro.id);
                 return (
                   <div
                     key={livro.id}
@@ -147,14 +164,10 @@ export default function BookShelf({ livros, onSelect, onReorder }) {
                     className="cursor-pointer flex-shrink-0 relative active:scale-95 transition-transform"
                     style={{ height: h }}
                   >
+                    {livro.status === "lendo" && <MarcadorLendo />}
                     {livro.coverUrl ? (
-                      <div className="relative h-full w-8">
-                        <div
-                          className="absolute inset-0 rounded-sm overflow-hidden shadow-md"
-                          style={{ background: `linear-gradient(90deg, ${bg} 0%, ${mid} 40%, ${bg} 100%)` }}
-                        >
-                          <div className="absolute left-0 top-0 bottom-0 w-[2px]" style={{ background: `linear-gradient(180deg, ${text}33, ${text}88, ${text}33)` }} />
-                        </div>
+                      <div className="relative h-full w-12">
+                        <Lombada livro={livro} />
                         <img
                           src={livro.coverUrl}
                           alt={livro.title}
@@ -162,24 +175,8 @@ export default function BookShelf({ livros, onSelect, onReorder }) {
                         />
                       </div>
                     ) : (
-                      <div
-                        className="h-full w-8 rounded-sm shadow-md flex items-center justify-center overflow-hidden relative"
-                        style={{ background: `linear-gradient(90deg, ${bg} 0%, ${mid} 40%, ${bg} 100%)` }}
-                      >
-                        <div className="absolute left-0 top-0 bottom-0 w-[2px]" style={{ background: `linear-gradient(180deg, ${text}33, ${text}88, ${text}33)` }} />
-                        <span
-                          className="text-[7px] font-semibold select-none"
-                          style={{
-                            color: text,
-                            writingMode: "vertical-rl",
-                            transform: "rotate(180deg)",
-                            maxHeight: "90%",
-                            overflow: "hidden",
-                            opacity: 0.9,
-                          }}
-                        >
-                          {livro.nickname || livro.title}
-                        </span>
+                      <div className="relative h-full w-9">
+                        <Lombada livro={livro} />
                       </div>
                     )}
                   </div>
