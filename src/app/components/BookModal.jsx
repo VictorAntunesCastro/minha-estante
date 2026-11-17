@@ -19,7 +19,7 @@ function toDateInput(iso) {
 
 const input = "w-full bg-amber-50/80 border border-amber-200 rounded-lg px-3 py-2 text-sm text-amber-950 placeholder-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400/60 focus:border-amber-400 transition";
 
-export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
+export default function BookModal({ livro, estantes = [], onClose, onUpdate, onDelete }) {
   const [form, setForm] = useState({
     title:       livro.title,
     author:      livro.author,
@@ -30,6 +30,7 @@ export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
     quote:       livro.quote || "",
     currentPage: livro.currentPage != null ? String(livro.currentPage) : "",
     totalPages:  livro.totalPages != null ? String(livro.totalPages) : "",
+    shelfId:     String(livro.shelfId || 1),
     startedAt:   toDateInput(livro.startedAt),
     finishedAt:  toDateInput(livro.finishedAt),
   });
@@ -51,6 +52,7 @@ export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
     form.quote       !== (livro.quote || "") ||
     form.currentPage !== (livro.currentPage != null ? String(livro.currentPage) : "") ||
     form.totalPages  !== (livro.totalPages != null ? String(livro.totalPages) : "") ||
+    form.shelfId     !== String(livro.shelfId || 1) ||
     form.startedAt   !== toDateInput(livro.startedAt) ||
     form.finishedAt  !== toDateInput(livro.finishedAt);
 
@@ -76,6 +78,7 @@ export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
       quote:       form.quote.trim() || null,
       currentPage: total && atual != null ? Math.min(atual, total) : atual,
       totalPages:  total,
+      shelfId:     Number(form.shelfId) || 1,
       startedAt:   form.startedAt || null,
       finishedAt:  form.finishedAt || null,
     });
@@ -226,7 +229,7 @@ export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
             </button>
           </div>
 
-          {/* ── Gênero + Apelido ── */}
+          {/* ── Gênero + Apelido + Estante ── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-amber-800 mb-1.5 uppercase tracking-wide">🏷️ Gênero</label>
@@ -238,6 +241,18 @@ export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
               </label>
               <input value={form.nickname} onChange={set("nickname")} placeholder={form.title} className={input} />
             </div>
+            {estantes.length > 0 && (
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-amber-800 mb-1.5 uppercase tracking-wide">🏛️ Estante / Coleção</label>
+                <select value={form.shelfId} onChange={set("shelfId")} className={input}>
+                  {estantes.map((e) => (
+                    <option key={e.id} value={String(e.id)}>
+                      📚 {e.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* ── Progresso de Páginas ── */}

@@ -4,8 +4,16 @@ import { useState, useEffect } from "react";
 
 const input = "w-full bg-amber-50/80 border border-amber-200 rounded-lg px-3 py-2.5 text-sm text-amber-950 placeholder-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400/60 focus:border-amber-400 transition";
 
-export default function AddBookModal({ onClose, onSave }) {
-  const [form, setForm] = useState({ title: "", author: "", coverUrl: "", genre: "", totalPages: "", status: "wishlist" });
+export default function AddBookModal({ estantes = [], estantePadrao = 1, onClose, onSave }) {
+  const [form, setForm] = useState({
+    title: "",
+    author: "",
+    coverUrl: "",
+    genre: "",
+    totalPages: "",
+    status: "wishlist",
+    shelfId: String(estantePadrao || 1),
+  });
   const [busca, setBusca]           = useState("");
   const [resultados, setResultados] = useState([]);
   const [buscando, setBuscando]     = useState(false);
@@ -150,7 +158,7 @@ export default function AddBookModal({ onClose, onSave }) {
                 <label className="block text-xs font-semibold text-amber-800 mb-1.5">Nº de páginas</label>
                 <input type="number" min="1" value={form.totalPages} onChange={set("totalPages")} placeholder="Ex: 320" className={input} />
               </div>
-              <div className="col-span-2">
+              <div className={estantes.length > 0 ? "" : "col-span-2"}>
                 <label className="block text-xs font-semibold text-amber-800 mb-1.5">Adicionar como</label>
                 <select value={form.status} onChange={set("status")} className={input}>
                   <option value="wishlist">🌟 Quero ler</option>
@@ -158,6 +166,18 @@ export default function AddBookModal({ onClose, onSave }) {
                   <option value="lido">✅ Lido</option>
                 </select>
               </div>
+              {estantes.length > 0 && (
+                <div>
+                  <label className="block text-xs font-semibold text-amber-800 mb-1.5">Estante</label>
+                  <select value={form.shelfId} onChange={set("shelfId")} className={input}>
+                    {estantes.map((e) => (
+                      <option key={e.id} value={String(e.id)}>
+                        📚 {e.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="col-span-2">
                 <label className="block text-xs font-semibold text-amber-800 mb-1.5">URL da capa</label>
                 <input value={form.coverUrl} onChange={set("coverUrl")} placeholder="https://..." className={input} />

@@ -15,6 +15,10 @@ const TABS = [
 
 export default function Home() {
   const [livros, setLivros]                   = useState([]);
+  const [estantes, setEstantes]               = useState([]);
+  const [estanteAtiva, setEstanteAtiva]       = useState("todas");
+  const [criandoEstante, setCriandoEstante]   = useState(false);
+  const [nomeNovaEstante, setNomeNovaEstante] = useState("");
   const [livroSelecionado, setLivroSelecionado] = useState(null);
   const [carregando, setCarregando]           = useState(true);
   const [erro, setErro]                       = useState(null);
@@ -42,6 +46,10 @@ export default function Home() {
       .then((data) => { setLivros(data); setCarregando(false); })
       .catch((e) => { setErro(e.name === "AbortError" ? "Tempo esgotado. Verifique sua conexão." : e.message); setCarregando(false); })
       .finally(() => clearTimeout(timeout));
+    fetch("/api/shelves")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setEstantes(data))
+      .catch(() => {});
   }
 
   useEffect(() => { buscarLivros(false); }, []);
@@ -87,6 +95,33 @@ export default function Home() {
     setAba("estante");
   }
 
+  async function criarEstante(e) {
+    e.preventDefault();
+    if (!nomeNovaEstante.trim()) return;
+    const res = await fetch("/api/shelves", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: nomeNovaEstante.trim() }),
+    });
+    if (!res.ok) { mostrarToast("Erro ao criar estante", "erro"); return; }
+    const nova = await res.json();
+    setEstantes((prev) => [...prev, nova]);
+    setEstanteAtiva(nova.id);
+    setNomeNovaEstante("");
+    setCriandoEstante(false);
+    mostrarToast(`Estante "${nova.name}" criada! 🏛️`);
+  }
+
+  async function removerEstante(id) {
+    if (!confirm("Remover esta estante? Os livros dela voltarão para a estante Principal.")) return;
+    const res = await fetch(`/api/shelves/${id}`, { method: "DELETE" });
+    if (!res.ok) { mostrarToast("Erro ao remover estante", "erro"); return; }
+    setEstantes((prev) => prev.filter((e) => e.id !== id));
+    setLivros((prev) => prev.map((l) => (l.shelfId === id ? { ...l, shelfId: 1 } : l)));
+    setEstanteAtiva("todas");
+    mostrarToast("Estante removida");
+  }
+
   async function salvarOrdemNoBanco(listaOrdenada) {
     const orderedIds = listaOrdenada.map((l) => l?.id).filter(Boolean);
     if (orderedIds.length === 0) return;
@@ -103,7 +138,7 @@ export default function Home() {
   async function reordenarLivros(reordenado) {
     const idsReordenados = new Set(reordenado.map((r) => r.id));
     let idx = 0;
-    const novaEstante = livrosEstante.map((livro) =>
+    const novaEstante = livrosEstanteGeral.map((livro) =>
       idsReordenados.has(livro.id) ? reordenado[idx++] : livro
     );
     setLivros([...novaEstante, ...livrosWishlist]);
@@ -111,13 +146,16 @@ export default function Home() {
   }
 
   async function reordenarWishlist(reordenado) {
-    setLivros([...livrosEstante, ...reordenado]);
+    setLivros([...livrosEstanteGeral, ...reordenado]);
     await salvarOrdemNoBanco(reordenado);
   }
 
-  const livrosEstante  = livros.filter((l) => l.status !== "wishlist");
+  const livrosEstanteGeral = livros.filter((l) => l.status !== "wishlist");
+  const livrosEstante = livrosEstanteGeral.filter(
+    (l) => estanteAtiva === "todas" || (l.shelfId || 1) === estanteAtiva
+  );
   const livrosWishlist = livros.filter((l) => l.status === "wishlist");
-  const livrosLendo    = livros.filter((l) => l.status === "lendo");
+  const livrosLendo    = livrosEstante.filter((l) => l.status === "lendo");
 
   /* Gêneros e autores disponíveis na estante */
   const generos = [...new Set(livrosEstante.map((l) => l.genre).filter(Boolean))].sort();
@@ -147,8 +185,8 @@ export default function Home() {
 
   const contadores = {
     todos:     livrosEstante.length,
-    lendo:     livros.filter((l) => l.status === "lendo").length,
-    lido:      livros.filter((l) => l.status === "lido").length,
+    lendo:     livrosEstante.filter((l) => l.status === "lendo").length,
+    lido:      livrosEstante.filter((l) => l.status === "lido").length,
     favoritos: livrosEstante.filter((l) => l.isFavorite).length,
   };
 
@@ -220,6 +258,81 @@ export default function Home() {
         {/* ── Aba Estante ── */}
         {!carregando && aba === "estante" && (
           <div className="animate-slide-up">
+            {/* Seletor de Estantes / Coleções */}
+            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-amber-900/10 flex-wrap">
+              <span className="text-xs font-bold text-amber-800/70 uppercase tracking-wide mr-1">🏛️ Coleção:</span>
+              <button
+                onClick={() => setEstanteAtiva("todas")}
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all border ${
+                  estanteAtiva === "todas"
+                    ? "bg-amber-900 text-amber-50 border-amber-900 shadow-sm"
+                    : "bg-amber-50/80 text-amber-800 border-amber-200 hover:border-amber-400"
+                }`}
+              >
+                Todas ({livrosEstanteGeral.length})
+              </button>
+
+              {estantes.map((est) => {
+                const qtd = livrosEstanteGeral.filter((l) => (l.shelfId || 1) === est.id).length;
+                const ativa = estanteAtiva === est.id;
+                return (
+                  <div key={est.id} className="inline-flex items-center gap-1">
+                    <button
+                      onClick={() => setEstanteAtiva(est.id)}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold transition-all border ${
+                        ativa
+                          ? "bg-amber-900 text-amber-50 border-amber-900 shadow-sm"
+                          : "bg-amber-50/80 text-amber-800 border-amber-200 hover:border-amber-400"
+                      }`}
+                    >
+                      📚 {est.name} ({qtd})
+                    </button>
+                    {ativa && !est.isDefault && est.id !== 1 && (
+                      <button
+                        onClick={() => removerEstante(est.id)}
+                        title="Excluir esta estante"
+                        className="text-xs text-red-500 hover:text-red-700 px-1.5 py-0.5 rounded-full hover:bg-red-50 transition"
+                      >
+                        🗑️
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+
+              {!criandoEstante ? (
+                <button
+                  onClick={() => setCriandoEstante(true)}
+                  className="px-3 py-1 rounded-full text-xs font-semibold text-amber-700 hover:text-amber-950 bg-amber-100/70 hover:bg-amber-200/70 border border-dashed border-amber-300 transition"
+                >
+                  + Nova coleção
+                </button>
+              ) : (
+                <form onSubmit={criarEstante} className="inline-flex items-center gap-1.5">
+                  <input
+                    value={nomeNovaEstante}
+                    onChange={(e) => setNomeNovaEstante(e.target.value)}
+                    placeholder="Ex: Favoritos, Emprestados..."
+                    className="bg-white border border-amber-300 rounded-full px-3 py-1 text-xs text-amber-950 placeholder-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400 w-44"
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    className="px-2.5 py-1 bg-amber-800 text-white rounded-full text-xs font-semibold hover:bg-amber-900 transition"
+                  >
+                    Criar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setCriandoEstante(false); setNomeNovaEstante(""); }}
+                    className="text-xs text-amber-500 hover:text-amber-800 px-1"
+                  >
+                    ✕
+                  </button>
+                </form>
+              )}
+            </div>
+
             {/* Filtros de status + botão filtros */}
             <div className="flex gap-2 mb-3 flex-wrap items-center">
               {[["todos", "Todos", "📚"], ["lendo", "Lendo", "📖"], ["lido", "Lido", "✅"], ["favoritos", "Favoritos", "❤️"]].map(([val, label, icon]) => (
@@ -487,13 +600,19 @@ export default function Home() {
       {livroSelecionado && (
         <BookModal
           livro={livroSelecionado}
+          estantes={estantes}
           onClose={() => setLivroSelecionado(null)}
           onUpdate={atualizarLivro}
           onDelete={deletarLivro}
         />
       )}
       {mostrarFormulario && (
-        <AddBookModal onClose={() => setMostrarFormulario(false)} onSave={salvarLivro} />
+        <AddBookModal
+          estantes={estantes}
+          estantePadrao={estanteAtiva === "todas" ? 1 : estanteAtiva}
+          onClose={() => setMostrarFormulario(false)}
+          onSave={salvarLivro}
+        />
       )}
       {toast && <Toast mensagem={toast.mensagem} tipo={toast.tipo} onClose={() => setToast(null)} />}
     </main>

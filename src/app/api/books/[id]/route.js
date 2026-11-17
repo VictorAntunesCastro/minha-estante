@@ -28,6 +28,7 @@ export async function PATCH(request, { params }) {
         ...(data.nickname    !== undefined && { nickname: data.nickname }),
         ...(data.currentPage !== undefined && { currentPage: data.currentPage !== null && data.currentPage !== "" ? Number(data.currentPage) : null }),
         ...(data.totalPages  !== undefined && { totalPages:  data.totalPages  !== null && data.totalPages  !== "" ? Number(data.totalPages)  : null }),
+        ...(data.shelfId     !== undefined && { shelfId:     Number(data.shelfId) }),
         ...(data.order       !== undefined && { order: data.order }),
         // Datas manuais têm prioridade; se não vieram, aplica lógica automática por status
         ...(data.startedAt  !== undefined

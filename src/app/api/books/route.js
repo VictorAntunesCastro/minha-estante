@@ -25,6 +25,7 @@ export async function POST(request) {
         status: data.status || "wishlist",
         totalPages: data.totalPages ? Number(data.totalPages) : null,
         currentPage: data.currentPage ? Number(data.currentPage) : null,
+        shelfId: data.shelfId ? Number(data.shelfId) : 1,
         order: (maxOrder._max.order ?? -1) + 1,
       },
     });
