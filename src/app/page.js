@@ -116,6 +116,7 @@ export default function Home() {
 
   const livrosEstante  = livros.filter((l) => l.status !== "wishlist");
   const livrosWishlist = livros.filter((l) => l.status === "wishlist");
+  const livrosLendo    = livros.filter((l) => l.status === "lendo");
 
   /* Gêneros e autores disponíveis na estante */
   const generos = [...new Set(livrosEstante.map((l) => l.genre).filter(Boolean))].sort();
@@ -362,6 +363,65 @@ export default function Home() {
                       </button>
                     ))}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Destaque: Lendo agora */}
+            {livrosLendo.length > 0 && filtroStatus !== "lido" && !termoBusca && (
+              <div className="mb-5">
+                <p className="text-xs font-bold text-amber-800/80 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                  <span>📖</span> Lendo agora
+                </p>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {livrosLendo.map((livro) => {
+                    const pct = livro.totalPages > 0
+                      ? Math.min(100, Math.round(((livro.currentPage || 0) / livro.totalPages) * 100))
+                      : null;
+                    return (
+                      <div
+                        key={livro.id}
+                        onClick={() => setLivroSelecionado(livro)}
+                        className="paper-card border border-amber-200/80 hover:border-amber-400 rounded-2xl p-3 flex items-center gap-3.5 shadow-sm hover:shadow-md cursor-pointer transition-all group"
+                      >
+                        {livro.coverUrl ? (
+                          <img
+                            src={livro.coverUrl}
+                            alt={livro.title}
+                            className="w-12 h-16 object-cover rounded-md shadow-sm flex-shrink-0 group-hover:scale-105 transition-transform"
+                          />
+                        ) : (
+                          <div className="w-12 h-16 bg-gradient-to-br from-amber-200 to-amber-400 rounded-md shadow-sm flex-shrink-0 flex items-center justify-center p-1">
+                            <span className="text-[8px] text-amber-900 font-semibold text-center leading-tight line-clamp-3">{livro.title}</span>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-bold text-amber-950 truncate" style={{ fontFamily: "Georgia, serif" }}>
+                            {livro.title}
+                          </h4>
+                          <p className="text-xs text-amber-700 truncate">{livro.author}</p>
+                          {pct !== null ? (
+                            <div className="mt-2">
+                              <div className="flex justify-between text-[11px] font-semibold text-amber-800 mb-1">
+                                <span>Pág. {livro.currentPage || 0} de {livro.totalPages}</span>
+                                <span>{pct}%</span>
+                              </div>
+                              <div className="w-full h-2 bg-amber-100 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-amber-700 rounded-full transition-all duration-300"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-[11px] text-amber-500 mt-1.5 group-hover:text-amber-700 transition">
+                              Clique para anotar a página atual →
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -621,6 +681,29 @@ function StatsView({ livros }) {
           </div>
         )}
       </div>
+
+      {/* Mural de Citações Favoritas */}
+      {livros.some((l) => l.quote) && (
+        <div className="paper-card rounded-2xl p-5 shadow-sm border border-amber-100">
+          <h3 className="text-sm font-bold text-amber-900 mb-3" style={{ fontFamily: "Georgia, serif" }}>💬 Citações Favoritas</h3>
+          <div className="flex flex-col gap-3">
+            {livros
+              .filter((l) => l.quote)
+              .map((l) => (
+                <blockquote
+                  key={l.id}
+                  className="bg-amber-50/70 border-l-4 border-amber-500 rounded-r-xl px-4 py-3 text-sm text-amber-950 italic"
+                  style={{ fontFamily: "Georgia, serif" }}
+                >
+                  “{l.quote}”
+                  <footer className="text-xs font-sans not-italic font-semibold text-amber-700 mt-1.5">
+                    — {l.title} <span className="font-normal text-amber-500">({l.author})</span>
+                  </footer>
+                </blockquote>
+              ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

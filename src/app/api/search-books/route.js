@@ -69,10 +69,11 @@ async function buscarGoogleBooks(query) {
       const info = item.volumeInfo || {};
       const categoriaBruta = (info.categories || [])[0] || "";
       return {
-        title:    info.title || "",
-        author:   (info.authors || []).join(", "),
-        genre:    formatarGenero(categoriaBruta),
-        coverUrl: normalizarCapaGoogle(info.imageLinks),
+        title:      info.title || "",
+        author:     (info.authors || []).join(", "),
+        genre:      formatarGenero(categoriaBruta),
+        coverUrl:   normalizarCapaGoogle(info.imageLinks),
+        totalPages: info.pageCount || null,
       };
     })
     .filter((l) => l.title && l.author);
@@ -90,10 +91,11 @@ async function buscarOpenLibrary(query) {
         .map(formatarGenero)
         .find(Boolean) || "";
       return {
-        title:    item.title || "",
-        author:   (item.author_name || []).join(", "),
-        genre:    generoValido,
-        coverUrl: item.cover_i ? `https://covers.openlibrary.org/b/id/${item.cover_i}-L.jpg` : "",
+        title:      item.title || "",
+        author:     (item.author_name || []).join(", "),
+        genre:      generoValido,
+        coverUrl:   item.cover_i ? `https://covers.openlibrary.org/b/id/${item.cover_i}-L.jpg` : "",
+        totalPages: item.number_of_pages_median || null,
       };
     })
     .filter((l) => l.title && l.author);

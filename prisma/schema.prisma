@@ -23,7 +23,10 @@ model Book {
   status      String   @default("wishlist")
   rating      Int?
   notes       String?
+  quote       String?
   nickname    String?
+  currentPage Int?
+  totalPages  Int?
   order       Int      @default(0)
   shelfId     Int      @default(1)
   startedAt   DateTime?

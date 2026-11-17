@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 const input = "w-full bg-amber-50/80 border border-amber-200 rounded-lg px-3 py-2.5 text-sm text-amber-950 placeholder-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400/60 focus:border-amber-400 transition";
 
 export default function AddBookModal({ onClose, onSave }) {
-  const [form, setForm] = useState({ title: "", author: "", coverUrl: "", genre: "", status: "wishlist" });
+  const [form, setForm] = useState({ title: "", author: "", coverUrl: "", genre: "", totalPages: "", status: "wishlist" });
   const [busca, setBusca]           = useState("");
   const [resultados, setResultados] = useState([]);
   const [buscando, setBuscando]     = useState(false);
@@ -53,10 +53,11 @@ export default function AddBookModal({ onClose, onSave }) {
   function selecionar(livro) {
     setForm((prev) => ({
       ...prev,
-      title:    livro.title,
-      author:   livro.author,
-      coverUrl: livro.coverUrl || "",
-      genre:    livro.genre || prev.genre,
+      title:      livro.title,
+      author:     livro.author,
+      coverUrl:   livro.coverUrl || "",
+      genre:      livro.genre || prev.genre,
+      totalPages: livro.totalPages ? String(livro.totalPages) : prev.totalPages,
     }));
     setBusca("");
     setResultados([]);
@@ -114,7 +115,10 @@ export default function AddBookModal({ onClose, onSave }) {
                     <div className="min-w-0">
                       <p className="font-semibold text-sm text-amber-950 truncate">{r.title}</p>
                       <p className="text-amber-600 text-xs truncate">{r.author}</p>
-                      {r.genre && <p className="text-amber-400 text-[10px] truncate italic">{r.genre}</p>}
+                      <div className="flex items-center gap-2 text-[10px] text-amber-400">
+                        {r.genre && <span className="truncate italic">{r.genre}</span>}
+                        {r.totalPages && <span>· {r.totalPages} págs</span>}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -143,6 +147,10 @@ export default function AddBookModal({ onClose, onSave }) {
                 <input value={form.genre} onChange={set("genre")} placeholder="Ex: Romance" className={input} />
               </div>
               <div>
+                <label className="block text-xs font-semibold text-amber-800 mb-1.5">Nº de páginas</label>
+                <input type="number" min="1" value={form.totalPages} onChange={set("totalPages")} placeholder="Ex: 320" className={input} />
+              </div>
+              <div className="col-span-2">
                 <label className="block text-xs font-semibold text-amber-800 mb-1.5">Adicionar como</label>
                 <select value={form.status} onChange={set("status")} className={input}>
                   <option value="wishlist">🌟 Quero ler</option>

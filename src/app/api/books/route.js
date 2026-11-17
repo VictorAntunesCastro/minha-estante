@@ -23,6 +23,8 @@ export async function POST(request) {
         coverUrl: data.coverUrl || null,
         genre: data.genre || null,
         status: data.status || "wishlist",
+        totalPages: data.totalPages ? Number(data.totalPages) : null,
+        currentPage: data.currentPage ? Number(data.currentPage) : null,
         order: (maxOrder._max.order ?? -1) + 1,
       },
     });

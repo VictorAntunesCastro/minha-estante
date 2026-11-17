@@ -21,14 +21,17 @@ const input = "w-full bg-amber-50/80 border border-amber-200 rounded-lg px-3 py-
 
 export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
   const [form, setForm] = useState({
-    title:      livro.title,
-    author:     livro.author,
-    genre:      livro.genre || "",
-    coverUrl:   livro.coverUrl || "",
-    nickname:   livro.nickname || "",
-    notes:      livro.notes || "",
-    startedAt:  toDateInput(livro.startedAt),
-    finishedAt: toDateInput(livro.finishedAt),
+    title:       livro.title,
+    author:      livro.author,
+    genre:       livro.genre || "",
+    coverUrl:    livro.coverUrl || "",
+    nickname:    livro.nickname || "",
+    notes:       livro.notes || "",
+    quote:       livro.quote || "",
+    currentPage: livro.currentPage != null ? String(livro.currentPage) : "",
+    totalPages:  livro.totalPages != null ? String(livro.totalPages) : "",
+    startedAt:   toDateInput(livro.startedAt),
+    finishedAt:  toDateInput(livro.finishedAt),
   });
   const [salvando, setSalvando]           = useState(false);
   const [salvou, setSalvou]               = useState(false);
@@ -39,14 +42,17 @@ export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
   const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
 
   const temAlteracao =
-    form.title      !== livro.title ||
-    form.author     !== livro.author ||
-    form.genre      !== (livro.genre || "") ||
-    form.coverUrl   !== (livro.coverUrl || "") ||
-    form.nickname   !== (livro.nickname || "") ||
-    form.notes      !== (livro.notes || "") ||
-    form.startedAt  !== toDateInput(livro.startedAt) ||
-    form.finishedAt !== toDateInput(livro.finishedAt);
+    form.title       !== livro.title ||
+    form.author      !== livro.author ||
+    form.genre       !== (livro.genre || "") ||
+    form.coverUrl    !== (livro.coverUrl || "") ||
+    form.nickname    !== (livro.nickname || "") ||
+    form.notes       !== (livro.notes || "") ||
+    form.quote       !== (livro.quote || "") ||
+    form.currentPage !== (livro.currentPage != null ? String(livro.currentPage) : "") ||
+    form.totalPages  !== (livro.totalPages != null ? String(livro.totalPages) : "") ||
+    form.startedAt   !== toDateInput(livro.startedAt) ||
+    form.finishedAt  !== toDateInput(livro.finishedAt);
 
   function handleTentativaFechar() {
     if (temAlteracao && !confirm("Você tem alterações não salvas. Deseja fechar sem salvar?")) {
@@ -58,15 +64,20 @@ export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
   async function salvarTudo() {
     if (!form.title.trim() || !form.author.trim()) return;
     setSalvando(true);
+    const total = form.totalPages ? Math.max(1, Number(form.totalPages)) : null;
+    const atual = form.currentPage !== "" ? Math.max(0, Number(form.currentPage)) : null;
     await onUpdate(livro.id, {
-      title:      form.title.trim(),
-      author:     form.author.trim(),
-      genre:      form.genre.trim() || null,
-      coverUrl:   form.coverUrl.trim() || null,
-      nickname:   form.nickname.trim() || null,
-      notes:      form.notes.trim() || null,
-      startedAt:  form.startedAt || null,
-      finishedAt: form.finishedAt || null,
+      title:       form.title.trim(),
+      author:      form.author.trim(),
+      genre:       form.genre.trim() || null,
+      coverUrl:    form.coverUrl.trim() || null,
+      nickname:    form.nickname.trim() || null,
+      notes:       form.notes.trim() || null,
+      quote:       form.quote.trim() || null,
+      currentPage: total && atual != null ? Math.min(atual, total) : atual,
+      totalPages:  total,
+      startedAt:   form.startedAt || null,
+      finishedAt:  form.finishedAt || null,
     });
     setSalvando(false);
     setSalvou(true);
@@ -75,12 +86,17 @@ export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
 
   async function mudarStatus(val) {
     setAtualizandoStatus(val);
-    const atualizado = await onUpdate(livro.id, { status: val });
+    const payload = { status: val };
+    if (val === "lido" && form.totalPages) {
+      payload.currentPage = Number(form.totalPages);
+    }
+    const atualizado = await onUpdate(livro.id, payload);
     if (atualizado) {
       setForm((prev) => ({
         ...prev,
-        startedAt:  toDateInput(atualizado.startedAt),
-        finishedAt: toDateInput(atualizado.finishedAt),
+        currentPage: atualizado.currentPage != null ? String(atualizado.currentPage) : prev.currentPage,
+        startedAt:   toDateInput(atualizado.startedAt),
+        finishedAt:  toDateInput(atualizado.finishedAt),
       }));
     }
     setAtualizandoStatus(null);
@@ -209,6 +225,53 @@ export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
             </div>
           </div>
 
+          {/* ── Progresso de Páginas ── */}
+          <div className="bg-amber-100/50 border border-amber-200/70 rounded-xl p-3.5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-amber-800 uppercase tracking-wide">📖 Progresso de Leitura</span>
+              {Number(form.totalPages) > 0 && (
+                <span className="text-xs font-bold text-amber-800">
+                  {Math.min(100, Math.round(((Number(form.currentPage) || 0) / Number(form.totalPages)) * 100))}% concluído
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-medium text-amber-700 mb-1">Página atual</label>
+                <input
+                  type="number"
+                  min="0"
+                  max={form.totalPages || undefined}
+                  value={form.currentPage}
+                  onChange={set("currentPage")}
+                  placeholder="Ex: 120"
+                  className={input}
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-amber-700 mb-1">Total de páginas</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={form.totalPages}
+                  onChange={set("totalPages")}
+                  placeholder="Ex: 350"
+                  className={input}
+                />
+              </div>
+            </div>
+            {Number(form.totalPages) > 0 && (
+              <div className="w-full h-2.5 bg-amber-200/70 rounded-full overflow-hidden mt-3">
+                <div
+                  className="h-full bg-amber-700 rounded-full transition-all duration-300"
+                  style={{
+                    width: `${Math.min(100, Math.round(((Number(form.currentPage) || 0) / Number(form.totalPages)) * 100))}%`,
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
           {/* ── Datas ── */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -219,6 +282,21 @@ export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
               <label className="block text-xs font-semibold text-amber-800 mb-1.5">🏁 Conclusão</label>
               <input type="date" value={form.finishedAt} onChange={set("finishedAt")} className={input} />
             </div>
+          </div>
+
+          {/* ── Citação favorita ── */}
+          <div>
+            <label className="block text-xs font-semibold text-amber-800 mb-1.5 uppercase tracking-wide">
+              💬 Citação / Frase Favorita
+            </label>
+            <textarea
+              value={form.quote}
+              onChange={set("quote")}
+              placeholder="“Aquela frase do livro que ficou marcada no coração...”"
+              rows={2}
+              className={`${input} resize-none italic`}
+              style={{ fontFamily: "Georgia, serif" }}
+            />
           </div>
 
           {/* ── Notas ── */}

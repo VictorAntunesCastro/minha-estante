@@ -22,9 +22,12 @@ export async function PATCH(request, { params }) {
         ...(data.coverUrl   !== undefined && { coverUrl: data.coverUrl }),
         ...(data.status     !== undefined && { status: data.status }),
         ...(data.rating     !== undefined && { rating: data.rating }),
-        ...(data.notes      !== undefined && { notes: data.notes }),
-        ...(data.nickname   !== undefined && { nickname: data.nickname }),
-        ...(data.order      !== undefined && { order: data.order }),
+        ...(data.notes       !== undefined && { notes: data.notes }),
+        ...(data.quote       !== undefined && { quote: data.quote }),
+        ...(data.nickname    !== undefined && { nickname: data.nickname }),
+        ...(data.currentPage !== undefined && { currentPage: data.currentPage !== null && data.currentPage !== "" ? Number(data.currentPage) : null }),
+        ...(data.totalPages  !== undefined && { totalPages:  data.totalPages  !== null && data.totalPages  !== "" ? Number(data.totalPages)  : null }),
+        ...(data.order       !== undefined && { order: data.order }),
         // Datas manuais têm prioridade; se não vieram, aplica lógica automática por status
         ...(data.startedAt  !== undefined
           ? { startedAt:  parseDateInput(data.startedAt) }
