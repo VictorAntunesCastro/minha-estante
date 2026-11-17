@@ -472,13 +472,13 @@ export default function Home() {
             className="text-xs text-amber-800/60 hover:text-amber-900 transition flex items-center gap-1.5 group"
             style={{ fontFamily: "Georgia, serif" }}
           >
-            <span>Feito com ❤️ para uma leitora muito especial</span>
+            <span>Feito com ❤️ especialmente para a Ju</span>
             <span className="group-hover:scale-125 transition-transform">💌</span>
           </button>
 
           {mostrarDedicatoria && (
             <div className="paper-card border border-amber-300/80 rounded-2xl px-5 py-3.5 max-w-sm text-xs text-amber-900 shadow-md animate-slide-up italic" style={{ fontFamily: "Georgia, serif" }}>
-              “Para você guardar cada história que já viveu nas páginas e todas as próximas que ainda vai descobrir. Com todo o meu amor! ❤️”
+              “Ju, fiz esse cantinho para você guardar cada história que já viveu nas páginas e todas as próximas que ainda vai descobrir. Te amo! ❤️”
             </div>
           )}
         </footer>
