@@ -14,22 +14,53 @@ export default function AddBookModal({ onClose, onSave }) {
 
   const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
 
+  function handleBuscaChange(e) {
+    const valor = e.target.value;
+    setBusca(valor);
+    if (valor.trim().length < 3) {
+      setResultados([]);
+      setBuscando(false);
+      setErroBusca(false);
+    } else {
+      setBuscando(true);
+      setErroBusca(false);
+    }
+  }
+
   useEffect(() => {
-    if (busca.trim().length < 3) { setResultados([]); setErroBusca(false); return; }
-    setBuscando(true);
-    setErroBusca(false);
+    const termo = busca.trim();
+    if (termo.length < 3) return;
+
+    const controller = new AbortController();
     const timer = setTimeout(() => {
-      fetch(`/api/search-books?q=${encodeURIComponent(busca)}`)
+      fetch(`/api/search-books?q=${encodeURIComponent(termo)}`, { signal: controller.signal })
         .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
         .then((data) => { setResultados(data); setBuscando(false); })
-        .catch(() => { setErroBusca(true); setBuscando(false); setResultados([]); });
-    }, 500);
-    return () => clearTimeout(timer);
+        .catch((err) => {
+          if (err.name === "AbortError") return;
+          setErroBusca(true);
+          setBuscando(false);
+          setResultados([]);
+        });
+    }, 450);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [busca]);
 
   function selecionar(livro) {
-    setForm({ ...form, title: livro.title, author: livro.author, coverUrl: livro.coverUrl, genre: livro.genre });
-    setBusca(""); setResultados([]);
+    setForm((prev) => ({
+      ...prev,
+      title:    livro.title,
+      author:   livro.author,
+      coverUrl: livro.coverUrl || "",
+      genre:    livro.genre || prev.genre,
+    }));
+    setBusca("");
+    setResultados([]);
+    setBuscando(false);
   }
 
   async function handleSubmit(e) {
@@ -57,11 +88,11 @@ export default function AddBookModal({ onClose, onSave }) {
         <div className="p-6 flex flex-col gap-4 max-h-[75vh] overflow-y-auto">
           {/* Busca */}
           <div className="relative">
-            <label className="block text-xs font-semibold text-amber-800 mb-1.5 uppercase tracking-wide">🔍 Buscar pelo título</label>
+            <label className="block text-xs font-semibold text-amber-800 mb-1.5 uppercase tracking-wide">🔍 Buscar por título ou autor</label>
             <input
               value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Ex: Harry Potter, Dom Casmurro..."
+              onChange={handleBuscaChange}
+              placeholder="Ex: É Assim que Acaba, Colleen Hoover, Dom Casmurro..."
               className={input}
             />
             {buscando && <p className="text-xs text-amber-500 mt-1.5 animate-pulse">Buscando livros...</p>}
