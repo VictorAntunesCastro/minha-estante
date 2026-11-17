@@ -58,8 +58,9 @@ function normalizarCapaGoogle(imageLinks) {
     .replace("&edge=curl", "");
 }
 
-async function buscarGoogleBooks(query) {
-  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=8&printType=books`;
+async function buscarGoogleBooks(query, apenasPortugues = true) {
+  const filtroIdioma = apenasPortugues ? "&langRestrict=pt&country=BR" : "&country=BR";
+  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=8&printType=books${filtroIdioma}`;
   const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
   if (!res.ok) throw new Error("Google Books indisponível");
   const data = await res.json();
@@ -80,21 +81,25 @@ async function buscarGoogleBooks(query) {
 }
 
 async function buscarOpenLibrary(query) {
-  const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=6`;
+  const fields = "title,author_name,subject,cover_i,number_of_pages_median,editions,editions.title,editions.cover_i,editions.language";
+  const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&lang=pt&fields=${fields}&limit=6`;
   const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
   if (!res.ok) throw new Error("OpenLibrary indisponível");
   const data = await res.json();
 
   return (data.docs || [])
     .map((item) => {
+      const edicaoPt = item.editions?.docs?.[0];
+      const tituloFinal = edicaoPt?.title || item.title || "";
+      const capaId = edicaoPt?.cover_i || item.cover_i;
       const generoValido = (item.subject || [])
         .map(formatarGenero)
         .find(Boolean) || "";
       return {
-        title:      item.title || "",
+        title:      tituloFinal,
         author:     (item.author_name || []).join(", "),
         genre:      generoValido,
-        coverUrl:   item.cover_i ? `https://covers.openlibrary.org/b/id/${item.cover_i}-L.jpg` : "",
+        coverUrl:   capaId ? `https://covers.openlibrary.org/b/id/${capaId}-L.jpg` : "",
         totalPages: item.number_of_pages_median || null,
       };
     })
@@ -107,9 +112,13 @@ export async function GET(request) {
   if (!query) return Response.json([]);
 
   try {
-    const livrosGoogle = await buscarGoogleBooks(query);
-    if (livrosGoogle.length > 0) {
-      return Response.json(livrosGoogle.slice(0, 6));
+    const livrosGooglePt = await buscarGoogleBooks(query, true);
+    if (livrosGooglePt.length > 0) {
+      return Response.json(livrosGooglePt.slice(0, 6));
+    }
+    const livrosGoogleGeral = await buscarGoogleBooks(query, false);
+    if (livrosGoogleGeral.length > 0) {
+      return Response.json(livrosGoogleGeral.slice(0, 6));
     }
   } catch {
     // Continua para o fallback na OpenLibrary

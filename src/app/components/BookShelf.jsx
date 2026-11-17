@@ -22,26 +22,30 @@ function Lombada({ livro, className = "" }) {
   const label = livro.nickname || livro.title;
   return (
     <div
-      className={`absolute inset-0 rounded-sm overflow-hidden shadow-md transition-opacity duration-200 ${className}`}
-      style={{ background: `linear-gradient(90deg, ${bg} 0%, ${mid} 40%, ${bg} 100%)` }}
+      className={`absolute inset-0 rounded-sm overflow-hidden shadow-md transition-all duration-300 ${className}`}
+      style={{ background: `linear-gradient(90deg, ${bg} 0%, ${mid} 45%, ${bg} 100%)` }}
     >
+      {/* Reflexo lateral e vinco da lombada */}
       <div className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: `linear-gradient(180deg, ${text}33, ${text}88, ${text}33)` }} />
-      <div className="absolute right-0 top-0 bottom-0 w-[2px] bg-black/30" />
-      <div className="absolute inset-0 flex items-center justify-center">
+      <div className="absolute right-0 top-0 bottom-0 w-[2px] bg-black/35" />
+      {/* Frisos dourados de livro de capa dura no topo e na base */}
+      <div className="absolute left-1 right-1 top-2.5 h-[1.5px] rounded-full opacity-40" style={{ background: text }} />
+      <div className="absolute left-1 right-1 bottom-2.5 h-[1.5px] rounded-full opacity-40" style={{ background: text }} />
+
+      <div className="absolute inset-0 py-4 px-1 flex items-center justify-center">
         <span
-          className="text-[9px] font-semibold tracking-wide leading-none select-none"
+          className="text-[10px] font-semibold tracking-wide leading-tight select-none"
           style={{
             color: text,
             writingMode: "vertical-rl",
             transform: "rotate(180deg)",
-            maxHeight: "90%",
+            maxHeight: "100%",
             overflow: "hidden",
-            display: "-webkit-box",
-            WebkitLineClamp: 1,
-            WebkitBoxOrient: "vertical",
             textOverflow: "ellipsis",
-            opacity: 0.92,
-            letterSpacing: "0.05em",
+            whiteSpace: "nowrap",
+            opacity: 0.95,
+            letterSpacing: "0.04em",
+            fontFamily: "Georgia, serif",
           }}
         >
           {label}
@@ -79,11 +83,11 @@ function Book({ livro, index, dragIndex, overIndex, onSelect, onDragStart, onDra
       onDragEnd={onDragEnd}
       onClick={() => onSelect(livro)}
       title={livro.title}
-      className={`cursor-pointer transition-all duration-200 hover:-translate-y-4 relative group flex-shrink-0
+      className={`cursor-pointer transition-all duration-300 ease-out hover:-translate-y-3 hover:z-30 relative group flex-shrink-0
         ${isOver ? "ml-5" : ""}
         ${isDragging ? "opacity-30 scale-95" : "opacity-100"}
       `}
-      style={{ height: h }}
+      style={{ height: h, perspective: "700px" }}
     >
       {livro.status === "lendo" && <MarcadorLendo />}
       {livro.isFavorite && (
@@ -96,16 +100,21 @@ function Book({ livro, index, dragIndex, overIndex, onSelect, onDragStart, onDra
       )}
 
       {livro.coverUrl ? (
-        <div className="relative h-full w-16 flex-shrink-0">
-          <Lombada livro={livro} />
+        <div className="relative h-full w-11 group-hover:w-28 transition-all duration-300 ease-out flex-shrink-0">
+          {/* Lombada visível em repouso; gira e some ao passar o mouse */}
+          <Lombada
+            livro={livro}
+            className="origin-left group-hover:opacity-0 group-hover:[transform:rotateY(-75deg)]"
+          />
+          {/* Capa oculta em repouso; gira de lado para a frente ao passar o mouse */}
           <img
             src={livro.coverUrl}
             alt={livro.title}
-            className="absolute inset-0 w-full h-full object-cover rounded-sm shadow-xl"
+            className="absolute inset-0 w-full h-full object-cover rounded-sm shadow-2xl ring-1 ring-black/20 opacity-0 [transform:rotateY(70deg)] origin-left group-hover:opacity-100 group-hover:[transform:rotateY(0deg)] transition-all duration-300 ease-out"
           />
         </div>
       ) : (
-        <div className="relative h-full w-10">
+        <div className="relative h-full w-11">
           <Lombada livro={livro} />
         </div>
       )}
@@ -146,7 +155,7 @@ export default function BookShelf({ livros, onSelect, onReorder }) {
   }
 
   if (isMobile) {
-    const SHELF_SIZE_MOBILE = 5;
+    const SHELF_SIZE_MOBILE = 7;
     const shelvesMobile = [];
     for (let i = 0; i < livros.length; i += SHELF_SIZE_MOBILE) {
       shelvesMobile.push(livros.slice(i, i + SHELF_SIZE_MOBILE));
@@ -163,7 +172,7 @@ export default function BookShelf({ livros, onSelect, onReorder }) {
               <div className="absolute top-0 left-3 right-3 h-2 pointer-events-none"
                 style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.25) 0%, transparent 100%)" }} />
               {shelfBooks.map((livro) => {
-                const heights = [116, 108, 122, 112, 126, 106];
+                const heights = [124, 114, 130, 118, 134, 112];
                 const h = heights[livro.id % heights.length];
                 return (
                   <div
@@ -178,20 +187,9 @@ export default function BookShelf({ livros, onSelect, onReorder }) {
                         ❤️
                       </span>
                     )}
-                    {livro.coverUrl ? (
-                      <div className="relative h-full w-12">
-                        <Lombada livro={livro} />
-                        <img
-                          src={livro.coverUrl}
-                          alt={livro.title}
-                          className="absolute inset-0 w-full h-full object-cover rounded-sm shadow-md"
-                        />
-                      </div>
-                    ) : (
-                      <div className="relative h-full w-9">
-                        <Lombada livro={livro} />
-                      </div>
-                    )}
+                    <div className="relative h-full w-9">
+                      <Lombada livro={livro} />
+                    </div>
                   </div>
                 );
               })}
