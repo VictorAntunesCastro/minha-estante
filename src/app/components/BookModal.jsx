@@ -10,7 +10,11 @@ const STATUS = [
 
 function toDateInput(iso) {
   if (!iso) return "";
-  return new Date(iso).toISOString().split("T")[0];
+  const d = new Date(iso);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 const input = "w-full bg-amber-50/80 border border-amber-200 rounded-lg px-3 py-2 text-sm text-amber-950 placeholder-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400/60 focus:border-amber-400 transition";
@@ -44,16 +48,23 @@ export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
     form.startedAt  !== toDateInput(livro.startedAt) ||
     form.finishedAt !== toDateInput(livro.finishedAt);
 
+  function handleTentativaFechar() {
+    if (temAlteracao && !confirm("Você tem alterações não salvas. Deseja fechar sem salvar?")) {
+      return;
+    }
+    onClose();
+  }
+
   async function salvarTudo() {
     if (!form.title.trim() || !form.author.trim()) return;
     setSalvando(true);
     await onUpdate(livro.id, {
       title:      form.title.trim(),
       author:     form.author.trim(),
-      genre:      form.genre || null,
-      coverUrl:   form.coverUrl || null,
-      nickname:   form.nickname || null,
-      notes:      form.notes || null,
+      genre:      form.genre.trim() || null,
+      coverUrl:   form.coverUrl.trim() || null,
+      nickname:   form.nickname.trim() || null,
+      notes:      form.notes.trim() || null,
       startedAt:  form.startedAt || null,
       finishedAt: form.finishedAt || null,
     });
@@ -64,7 +75,14 @@ export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
 
   async function mudarStatus(val) {
     setAtualizandoStatus(val);
-    await onUpdate(livro.id, { status: val });
+    const atualizado = await onUpdate(livro.id, { status: val });
+    if (atualizado) {
+      setForm((prev) => ({
+        ...prev,
+        startedAt:  toDateInput(atualizado.startedAt),
+        finishedAt: toDateInput(atualizado.finishedAt),
+      }));
+    }
     setAtualizandoStatus(null);
   }
 
@@ -78,7 +96,7 @@ export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
   const capaAtual = form.coverUrl || livro.coverUrl;
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-40" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-40" onClick={handleTentativaFechar}>
       <div
         className="paper-card rounded-2xl shadow-2xl max-w-lg w-full max-h-[92vh] overflow-y-auto animate-modal-in border border-amber-200/60"
         onClick={(e) => e.stopPropagation()}
@@ -89,7 +107,7 @@ export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
             <img src={capaAtual} alt="" className="absolute inset-0 w-full h-full object-cover opacity-25 scale-110 blur-sm" />
           )}
           <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(45,18,6,0.7), rgba(124,74,30,0.5))" }} />
-          <button onClick={onClose} className="absolute top-3 right-3 text-white/60 hover:text-white text-lg leading-none z-10 w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition">✕</button>
+          <button onClick={handleTentativaFechar} className="absolute top-3 right-3 text-white/60 hover:text-white text-lg leading-none z-10 w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition">✕</button>
           <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#fdf8f0] to-transparent" />
         </div>
 
@@ -121,14 +139,11 @@ export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
               className="w-full text-sm text-amber-700 bg-transparent border-b border-transparent hover:border-amber-300 focus:border-amber-500 focus:outline-none transition mt-1 pb-0.5"
               placeholder="Autor"
             />
-            {livro.genre || form.genre ? (
-              <input
-                value={form.genre}
-                onChange={set("genre")}
-                className="w-full text-xs text-amber-500 italic bg-transparent border-b border-transparent hover:border-amber-300 focus:border-amber-500 focus:outline-none transition mt-0.5 pb-0.5"
-                placeholder="Gênero"
-              />
-            ) : null}
+            {form.genre && (
+              <span className="inline-block mt-1 px-2 py-0.5 bg-amber-100/80 text-amber-800 text-[11px] font-medium rounded-full border border-amber-200/60">
+                🏷️ {form.genre}
+              </span>
+            )}
           </div>
         </div>
 
@@ -180,13 +195,19 @@ export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
             </div>
           </div>
 
-          {/* ── Gênero (se não tinha) ── */}
-          {!livro.genre && !form.genre && (
+          {/* ── Gênero + Apelido ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-amber-800 mb-1.5 uppercase tracking-wide">Gênero</label>
+              <label className="block text-xs font-semibold text-amber-800 mb-1.5 uppercase tracking-wide">🏷️ Gênero</label>
               <input value={form.genre} onChange={set("genre")} placeholder="Ex: Romance, Fantasia..." className={input} />
             </div>
-          )}
+            <div>
+              <label className="block text-xs font-semibold text-amber-800 mb-1.5 uppercase tracking-wide">
+                🔖 Apelido <span className="text-amber-400 font-normal normal-case">(na lombada)</span>
+              </label>
+              <input value={form.nickname} onChange={set("nickname")} placeholder={form.title} className={input} />
+            </div>
+          </div>
 
           {/* ── Datas ── */}
           <div className="grid grid-cols-2 gap-3">
@@ -198,14 +219,6 @@ export default function BookModal({ livro, onClose, onUpdate, onDelete }) {
               <label className="block text-xs font-semibold text-amber-800 mb-1.5">🏁 Conclusão</label>
               <input type="date" value={form.finishedAt} onChange={set("finishedAt")} className={input} />
             </div>
-          </div>
-
-          {/* ── Apelido ── */}
-          <div>
-            <label className="block text-xs font-semibold text-amber-800 mb-1.5 uppercase tracking-wide">
-              🏷️ Apelido <span className="text-amber-400 font-normal normal-case">(aparece na lombada)</span>
-            </label>
-            <input value={form.nickname} onChange={set("nickname")} placeholder={form.title} className={input} />
           </div>
 
           {/* ── Notas ── */}

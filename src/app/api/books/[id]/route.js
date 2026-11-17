@@ -1,5 +1,13 @@
 import { prisma } from "../../../../lib/prisma";
 
+function parseDateInput(val) {
+  if (!val) return null;
+  if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+    return new Date(`${val}T12:00:00.000Z`);
+  }
+  return new Date(val);
+}
+
 export async function PATCH(request, { params }) {
   try {
     const { id } = await params;
@@ -19,12 +27,12 @@ export async function PATCH(request, { params }) {
         ...(data.order      !== undefined && { order: data.order }),
         // Datas manuais têm prioridade; se não vieram, aplica lógica automática por status
         ...(data.startedAt  !== undefined
-          ? { startedAt:  data.startedAt  ? new Date(data.startedAt)  : null }
+          ? { startedAt:  parseDateInput(data.startedAt) }
           : data.status === "lendo"    ? { startedAt: new Date() }
           : data.status === "wishlist" ? { startedAt: null }
           : {}),
         ...(data.finishedAt !== undefined
-          ? { finishedAt: data.finishedAt ? new Date(data.finishedAt) : null }
+          ? { finishedAt: parseDateInput(data.finishedAt) }
           : data.status === "lido"     ? { finishedAt: new Date() }
           : data.status === "lendo"    ? { finishedAt: null }
           : data.status === "wishlist" ? { finishedAt: null }
