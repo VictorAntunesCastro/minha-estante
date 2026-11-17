@@ -416,9 +416,39 @@ export default function Home() {
 
 /* ── Stats ── */
 function StatsView({ livros }) {
+  const anoAtual = new Date().getFullYear();
+  const chaveStorage = `minha_estante_meta_${anoAtual}`;
+
+  const [metaAnual, setMetaAnual] = useState(() => {
+    if (typeof window === "undefined") return 12;
+    const salvo = window.localStorage.getItem(chaveStorage);
+    return salvo ? Math.max(1, Number(salvo)) : 12;
+  });
+  const [editandoMeta, setEditandoMeta] = useState(false);
+  const [inputMeta, setInputMeta]       = useState(String(metaAnual));
+
+  function salvarMeta(e) {
+    e.preventDefault();
+    const valor = Math.max(1, Math.min(365, Number(inputMeta) || 12));
+    setMetaAnual(valor);
+    setInputMeta(String(valor));
+    setEditandoMeta(false);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(chaveStorage, String(valor));
+    }
+  }
+
   const lidos    = livros.filter((l) => l.status === "lido");
   const lendo    = livros.filter((l) => l.status === "lendo");
   const wishlist = livros.filter((l) => l.status === "wishlist");
+
+  const lidosNoAno = lidos.filter((l) => {
+    const dataRef = l.finishedAt || l.createdAt;
+    return dataRef ? new Date(dataRef).getFullYear() === anoAtual : true;
+  }).length;
+
+  const progressoMeta = Math.min(100, Math.round((lidosNoAno / metaAnual) * 100));
+  const bateuMeta     = lidosNoAno >= metaAnual;
 
   const lidosComNota = lidos.filter((l) => l.rating);
   const mediaAvaliacao = lidosComNota.length > 0
@@ -459,6 +489,77 @@ function StatsView({ livros }) {
             <div className="text-xs text-amber-700 font-medium mt-0.5">{label}</div>
           </div>
         ))}
+      </div>
+
+      {/* Desafio / Meta Anual de Leitura */}
+      <div className="paper-card rounded-2xl p-5 shadow-sm border border-amber-200/80">
+        <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+          <div>
+            <h3 className="text-sm sm:text-base font-bold text-amber-950 flex items-center gap-1.5" style={{ fontFamily: "Georgia, serif" }}>
+              <span>{bateuMeta ? "👑" : "🏆"}</span> Desafio de Leitura {anoAtual}
+            </h3>
+            <p className="text-xs text-amber-700/80 mt-0.5">
+              {lidosNoAno === 0
+                ? "Que tal começar o primeiro livro do ano? 📖"
+                : bateuMeta
+                ? "🎉 Parabéns!! Você alcançou sua meta de leitura do ano!"
+                : progressoMeta >= 50
+                ? `Mais da metade concluída! Faltam só ${metaAnual - lidosNoAno} livro${metaAnual - lidosNoAno !== 1 ? "s" : ""} 🔥`
+                : `Bom ritmo! Faltam ${metaAnual - lidosNoAno} livro${metaAnual - lidosNoAno !== 1 ? "s" : ""} para a meta ✨`}
+            </p>
+          </div>
+
+          {!editandoMeta ? (
+            <button
+              onClick={() => { setInputMeta(String(metaAnual)); setEditandoMeta(true); }}
+              className="text-xs font-semibold text-amber-700 hover:text-amber-950 bg-amber-100/80 hover:bg-amber-200/80 px-3 py-1.5 rounded-full transition"
+            >
+              ✏️ Meta: {metaAnual} livros
+            </button>
+          ) : (
+            <form onSubmit={salvarMeta} className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={inputMeta}
+                onChange={(e) => setInputMeta(e.target.value)}
+                className="w-16 bg-white border border-amber-300 rounded-lg px-2 py-1 text-xs font-bold text-amber-950 text-center focus:outline-none focus:ring-2 focus:ring-amber-400"
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="px-2.5 py-1 bg-amber-800 text-white text-xs font-semibold rounded-lg hover:bg-amber-900 transition"
+              >
+                Salvar
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditandoMeta(false)}
+                className="px-2 py-1 text-amber-600 hover:text-amber-900 text-xs"
+              >
+                ✕
+              </button>
+            </form>
+          )}
+        </div>
+
+        <div className="flex items-end justify-between text-xs font-semibold text-amber-900 mb-1.5">
+          <span>{lidosNoAno} de {metaAnual} lidos em {anoAtual}</span>
+          <span className="text-amber-700 font-bold">{progressoMeta}%</span>
+        </div>
+
+        <div className="w-full h-3.5 bg-amber-100 rounded-full overflow-hidden shadow-inner p-0.5">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: `${progressoMeta}%`,
+              background: bateuMeta
+                ? "linear-gradient(90deg, #16a34a, #22c55e, #fbbf24)"
+                : "linear-gradient(90deg, #b45309, #d97706, #fbbf24)",
+            }}
+          />
+        </div>
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">
